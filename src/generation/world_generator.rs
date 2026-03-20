@@ -1,5 +1,5 @@
-use crate::hex::{Hex, HexType, HexCoordinates, HexMap};
 use crate::generation::PerlinNoise;
+use crate::hex::{Hex, HexCoordinates, HexMap, HexType};
 
 pub struct ProceduralWorldGenerator {
     width: i32,
@@ -28,41 +28,41 @@ impl ProceduralWorldGenerator {
             aridity_noise: PerlinNoise::new((seed + 5) as u32),
         }
     }
-    
+
     pub fn generate_world(&self) -> HexMap {
         let mut hex_map = HexMap::new(self.width, self.height);
-        
+
         // Generate hexes for the entire map
         for q in 0..self.width {
             for r in 0..self.height {
                 let coordinates = HexCoordinates::new(q, r);
                 let hex_type = self.determine_hex_type(q, r);
                 let hex = Hex::new(coordinates, hex_type);
-                hex_map.add_hex(hex);
+                hex_map.set_hex(q, r, hex)
             }
         }
-        
+
         println!("Generated world with {} hexes", hex_map.size());
-        
+
         hex_map
     }
-    
+
     fn determine_hex_type(&self, q: i32, r: i32) -> HexType {
         let nx = q as f64 / self.width as f64;
         let ny = r as f64 / self.height as f64;
-        
+
         // Get noise values
         let height = self.continental_noise.noise(nx * 2.0, ny * 2.0) as f32;
         let moisture = self.moisture_noise.noise(nx * 3.0, ny * 3.0) as f32;
         let temperature = self.temperature_noise.noise(nx * 2.5, ny * 2.5) as f32;
         let aridity = self.aridity_noise.noise(nx * 1.5, ny * 1.5) as f32;
-        
+
         // Normalize noise values to 0-1 range
         let height = (height + 1.0) / 2.0;
         let moisture = (moisture + 1.0) / 2.0;
         let temperature = (temperature + 1.0) / 2.0;
         let aridity = (aridity + 1.0) / 2.0;
-        
+
         // Determine hex type based on noise values
         if height < 0.2 {
             HexType::Ocean

@@ -92,9 +92,11 @@ fn generate_hex_mesh(size: f32) -> Mesh {
     let mut uvs = Vec::new();
     let mut indices = Vec::new();
     
-    // Generate hex vertices
+    // Generate hex vertices with flat sides horizontal (flat-top orientation)
+    // Rotate by π/6 so that a flat side is aligned with the X axis
+    let rotation = std::f32::consts::PI / 6.0;
     for i in 0..6 {
-        let angle = (i as f32) * std::f32::consts::PI / 3.0;
+        let angle = (i as f32) * std::f32::consts::PI / 3.0 + rotation;
         let x = size * angle.cos();
         let z = size * angle.sin();
         positions.push([x, 0.0, z]);

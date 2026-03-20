@@ -21,7 +21,7 @@ impl Hex {
             generation_seed: 0,
         }
     }
-    
+
     // Getters
     pub fn coordinates(&self) -> &HexCoordinates {
         &self.coordinates
