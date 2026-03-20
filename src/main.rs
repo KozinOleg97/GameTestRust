@@ -4,11 +4,17 @@ use crate::hex::map::HexMap;
 use crate::hex::utils::{axial_to_pixel, HEX_SIZE};
 use crate::rendering::HexRendererPlugin;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+
+use bevy::math::Vec2;
+
+use camera_controller::{CameraController, CameraControllerPlugin};
 
 mod generation;
 mod hex;
 mod performance_overlay;
 mod rendering;
+mod camera_controller;
 
 fn main() {
     App::new()
@@ -16,6 +22,7 @@ fn main() {
             DefaultPlugins,
             HexRendererPlugin,
             performance_overlay::PerformanceOverlayPlugin,
+            CameraControllerPlugin,
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (render_world, debug_frame))
@@ -46,6 +53,7 @@ fn setup(mut commands: Commands) {
             ..default()
         }),
         camera_transform,
+        CameraController::default(),
     ));
 
     // Generate a simple world
@@ -78,60 +86,59 @@ fn render_world(
     hex_materials: Res<rendering::HexMaterials>,
     mut has_rendered: Local<bool>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     // Only render once
     if *has_rendered {
         return;
     }
 
-    println!("Rendering {} hexes", hex_map.size());
+    println!("Rendering {} hexes total", hex_map.size());
 
-    // Get the camera
-    let Ok((camera, camera_transform)) = camera_query.single() else {
-        println!("No camera found, skipping rendering");
-        return;
+    let (camera, camera_transform) = match camera_query.single() {
+        Ok(pair) => pair,
+        Err(_) => {
+            println!("No camera found, skipping rendering");
+            return;
+        }
     };
+
+    let window = window_query.iter().next();
+
+    // Вычисляем видимый диапазон координат
+    let (min_q, max_q, min_r, max_r) =
+        visible_hex_range(camera, camera_transform, &hex_map, window);
+    println!(
+        "Visible hex range: q=[{}, {}], r=[{}, {}]",
+        min_q, max_q, min_r, max_r
+    );
 
     let mut rendered_count = 0;
 
-    // Render all hexes that are visible to the camera
-    for (i, hex) in hex_map.iter().enumerate() {
-        let coordinates = hex.coordinates();
-        let (x, y) = crate::hex::utils::axial_to_pixel(coordinates, crate::hex::HEX_SIZE);
+    // Создаём сущности только для гексов в видимом диапазоне
+    for r in min_r..=max_r {
+        for q in min_q..=max_q {
+            let Some(hex) = hex_map.get_hex(q, r) else {
+                continue;
+            };
 
-        // World position of the hex (ground plane)
-        let world_pos = Vec3::new(x, 0.0, y);
+            let (x, y) = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
 
-        // Если гекс не виден, пропускаем
-        if camera
-            .world_to_viewport(camera_transform, world_pos)
-            .is_err()
-        {
-            continue;
+            commands.spawn((
+                rendering::HexComponent,
+                rendering::HexTypeComponent {
+                    hex_type: *hex.hex_type(),
+                },
+                rendering::HexPositionComponent {
+                    coordinates: *hex.coordinates(),
+                },
+                Mesh3d(hex_mesh.mesh.clone()),
+                MeshMaterial3d(hex_materials.materials[hex.hex_type()].clone()),
+                Transform::from_xyz(x, 0.0, y),
+            ));
+
+            rendered_count += 1;
         }
-
-        // println!("Rendering hex at ({}, {}) with type {:?} at position ({}, {})",
-        //     coordinates.q(), coordinates.r(), hex.hex_type(), x, y);
-
-        commands.spawn((
-            rendering::HexComponent,
-            rendering::HexTypeComponent {
-                hex_type: *hex.hex_type(),
-            },
-            rendering::HexPositionComponent {
-                coordinates: *coordinates,
-            },
-            Mesh3d(hex_mesh.mesh.clone()),
-            MeshMaterial3d(hex_materials.materials[hex.hex_type()].clone()),
-            Transform::from_xyz(x, 0.0, y),
-        ));
-
-        rendered_count += 1;
-
-        // For debugging, only render first 10 hexes
-        // if i >= 9 {
-        //     break;
-        // }
     }
 
     *has_rendered = true;
@@ -140,6 +147,83 @@ fn render_world(
         hex_map.size(),
         rendered_count
     );
+}
+
+// Возвращает диапазон координат гексов, которые могут быть видны камерой.
+fn visible_hex_range(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    hex_map: &HexMap,
+    window: Option<&Window>,
+) -> (i32, i32, i32, i32) {
+    // Получаем логический размер вьюпорта (если камера не задаёт свой – используем размер окна)
+    let viewport_size = camera
+        .logical_viewport_size()
+        .or_else(|| window.map(|w| Vec2::new(w.width(), w.height())))
+        .unwrap_or(Vec2::new(1920.0, 1080.0));
+
+    // Четыре угла экрана в координатах вьюпорта
+    let corners = [
+        Vec2::new(0.0, 0.0),
+        Vec2::new(viewport_size.x, 0.0),
+        Vec2::new(viewport_size.x, viewport_size.y),
+        Vec2::new(0.0, viewport_size.y),
+    ];
+
+    let mut world_points = Vec::new();
+
+    for corner in corners {
+        // viewport_to_world возвращает Result, обрабатываем через ok()
+        if let Ok(ray) = camera.viewport_to_world(camera_transform, corner) {
+            // Проверяем, что луч не параллелен плоскости земли
+            if ray.direction.y.abs() > f32::EPSILON {
+                let t = -ray.origin.y / ray.direction.y;
+                if t > 0.0 {
+                    let point = ray.origin + ray.direction * t;
+                    world_points.push(point);
+                }
+            }
+        }
+    }
+
+    if world_points.is_empty() {
+        return (0, hex_map.width() - 1, 0, hex_map.height() - 1);
+    }
+
+    let min_x = world_points
+        .iter()
+        .map(|p| p.x)
+        .fold(f32::INFINITY, f32::min);
+    let max_x = world_points
+        .iter()
+        .map(|p| p.x)
+        .fold(f32::NEG_INFINITY, f32::max);
+    let min_z = world_points
+        .iter()
+        .map(|p| p.z)
+        .fold(f32::INFINITY, f32::min);
+    let max_z = world_points
+        .iter()
+        .map(|p| p.z)
+        .fold(f32::NEG_INFINITY, f32::max);
+
+    // Размеры гекса (определены в hex::utils)
+    let hex_width = crate::hex::HEX_WIDTH;
+    let y_pitch = crate::hex::Y_PITCH;
+
+    // Приблизительное преобразование в координаты гексов (с запасом)
+    let min_q = ((min_x) / hex_width).floor() as i32 - 1;
+    let max_q = ((max_x) / hex_width).ceil() as i32 + 1;
+    let min_r = ((min_z) / y_pitch).floor() as i32 - 1;
+    let max_r = ((max_z) / y_pitch).ceil() as i32 + 1;
+
+    // Ограничиваем границами карты
+    let min_q = min_q.max(0);
+    let max_q = max_q.min(hex_map.width() - 1);
+    let min_r = min_r.max(0);
+    let max_r = max_r.min(hex_map.height() - 1);
+
+    (min_q, max_q, min_r, max_r)
 }
 
 fn debug_frame(time: Res<Time>, mut timer: Local<f32>) {
