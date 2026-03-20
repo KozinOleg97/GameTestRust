@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use bevy::math::Vec2;
+use std::collections::HashMap;
 
 use camera_controller::{CameraController, CameraControllerPlugin};
 
@@ -84,17 +85,10 @@ fn render_world(
     hex_map: Res<HexMap>,
     hex_mesh: Res<rendering::HexMesh>,
     hex_materials: Res<rendering::HexMaterials>,
-    mut has_rendered: Local<bool>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
     window_query: Query<&Window, With<PrimaryWindow>>,
+    hex_query: Query<(Entity, &rendering::HexPositionComponent)>,
 ) {
-    // Only render once
-    if *has_rendered {
-        return;
-    }
-
-    println!("Rendering {} hexes total", hex_map.size());
-
     let (camera, camera_transform) = match camera_query.single() {
         Ok(pair) => pair,
         Err(_) => {
@@ -108,45 +102,49 @@ fn render_world(
     // Вычисляем видимый диапазон координат
     let (min_q, max_q, min_r, max_r) =
         visible_hex_range(camera, camera_transform, &hex_map, window);
-    println!(
-        "Visible hex range: q=[{}, {}], r=[{}, {}]",
-        min_q, max_q, min_r, max_r
-    );
-
-    let mut rendered_count = 0;
 
     // Создаём сущности только для гексов в видимом диапазоне
+    let mut visible_coords = std::collections::HashSet::new();
     for r in min_r..=max_r {
         for q in min_q..=max_q {
-            let Some(hex) = hex_map.get_hex(q, r) else {
-                continue;
-            };
+            if hex_map.get_hex(q, r).is_some() {
+                visible_coords.insert(HexCoordinates::new(q, r));
+            }
+        }
+    }
 
-            let (x, y) = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
+    // Collect existing hex entities into a map
+    let mut existing_hexes = std::collections::HashMap::new();
+    for (entity, pos) in hex_query.iter() {
+        existing_hexes.insert(pos.coordinates, entity);
+    }
 
+    // Spawn new hexes for coordinates that are not already spawned
+    for coords in &visible_coords {
+        if !existing_hexes.contains_key(coords) {
+            let hex = hex_map.get_hex(coords.q(), coords.r()).unwrap(); // safe because we checked earlier
+            let (x, y) = axial_to_pixel(coords, HEX_SIZE);
             commands.spawn((
                 rendering::HexComponent,
                 rendering::HexTypeComponent {
                     hex_type: *hex.hex_type(),
                 },
                 rendering::HexPositionComponent {
-                    coordinates: *hex.coordinates(),
+                    coordinates: *coords,
                 },
                 Mesh3d(hex_mesh.mesh.clone()),
                 MeshMaterial3d(hex_materials.materials[hex.hex_type()].clone()),
                 Transform::from_xyz(x, 0.0, y),
             ));
-
-            rendered_count += 1;
         }
     }
 
-    *has_rendered = true;
-    println!(
-        "Finished rendering {} hexes (culled to {})",
-        hex_map.size(),
-        rendered_count
-    );
+    // Despawn hexes that are no longer visible
+    for (coords, entity) in existing_hexes.iter() {
+        if !visible_coords.contains(coords) {
+            commands.entity(*entity).despawn();
+        }
+    }
 }
 
 // Возвращает диапазон координат гексов, которые могут быть видны камерой.
