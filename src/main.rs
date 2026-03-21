@@ -2,12 +2,11 @@ use crate::generation::ProceduralWorldGenerator;
 use crate::hex::coordinates::HexCoordinates;
 use crate::hex::map::HexMap;
 use crate::hex::utils::{axial_to_pixel, HEX_SIZE};
-use crate::rendering::HexRendererPlugin;
+use crate::rendering::{HexRendererPlugin, BatchedHexRendererPlugin};
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PresentMode, PrimaryWindow, WindowPlugin};
 
 use bevy::math::Vec2;
-use std::collections::HashMap;
 
 use camera_controller::{CameraController, CameraControllerPlugin};
 
@@ -20,13 +19,21 @@ mod camera_controller;
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        present_mode: PresentMode::AutoNoVsync,
+                        ..default()
+                    }),
+                    ..default()
+                }),
             HexRendererPlugin,
+            BatchedHexRendererPlugin,
             performance_overlay::PerformanceOverlayPlugin,
             CameraControllerPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (render_world, debug_frame))
+        .add_systems(Update, debug_frame)
         .run();
 }
 
@@ -58,7 +65,7 @@ fn setup(mut commands: Commands) {
     ));
 
     // Generate a simple world
-    let generator = ProceduralWorldGenerator::new(1000, 1000, 12345);
+    let generator = ProceduralWorldGenerator::new(200, 200, 12345);
     let hex_map = generator.generate_world();
 
     // Store the hex map as a resource

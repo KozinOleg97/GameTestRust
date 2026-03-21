@@ -32,7 +32,7 @@ impl Default for CameraController {
 }
 
 fn camera_control_system(
-    mut mouse_btn: Res<ButtonInput<MouseButton>>,
+    mouse_btn: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: MessageReader<MouseMotion>,
     mut scroll: MessageReader<MouseWheel>,
     time: Res<Time>,
