@@ -2,13 +2,15 @@ use crate::generation::ProceduralWorldGenerator;
 use crate::hex::coordinates::HexCoordinates;
 use crate::hex::map::HexMap;
 use crate::hex::utils::{axial_to_pixel, HEX_SIZE};
-use crate::rendering::{HexRendererPlugin, BatchedHexRendererPlugin};
+use crate::rendering::HexRendererPlugin;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, WindowPlugin};
 
 use bevy::math::Vec2;
 
 use camera_controller::{CameraController, CameraControllerPlugin};
+use crate::rendering::batched_hex_renderer::BatchedHexRendererPlugin;
+use crate::rendering::batched_triangle_strip_renderer::TriangleStripHexRendererPlugin;
 
 mod generation;
 mod hex;
@@ -27,8 +29,9 @@ fn main() {
                     }),
                     ..default()
                 }),
-            HexRendererPlugin,
+            // HexRendererPlugin,
             BatchedHexRendererPlugin,
+            // TriangleStripHexRendererPlugin,
             performance_overlay::PerformanceOverlayPlugin,
             CameraControllerPlugin,
         ))

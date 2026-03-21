@@ -10,29 +10,27 @@ uuid = { version = "1.0", features = ["v4"] }
 serde = { version = "1.0", features = ["derive"] }
 
 
-# Enable a small amount of optimization in the dev profile.
 [profile.dev]
-opt-level = 1
-
-# Enable a large amount of optimization in the dev profile for dependencies.
+# Keep fast compilation times during development.
+opt-level = 0          # No optimizations – fastest compile times.
+debug = true           # Full debug info (default, but explicit).
+# Bevy often uses many dependencies; enabling optimizations for them can speed up runtime.
 [profile.dev.package."*"]
-opt-level = 3
+opt-level = 3          # Optimize all dependencies heavily (slower to compile, but better runtime for dev).
 
-# Enable more optimization in the release profile at the cost of compile time.
 [profile.release]
-# Compile the entire crate as one unit.
-# Slows compile times, marginal improvements.
-codegen-units = 1
-# Do a second optimization pass over the entire program, including dependencies.
-# Slows compile times, marginal improvements.
-lto = "thin"
+# Optimize for runtime performance.
+opt-level = 3          # Maximum optimizations (default).
+lto = "fat"            # Full link-time optimization – better performance than "thin", but slower compile.
+codegen-units = 1      # One codegen unit maximizes optimization opportunities.
+panic = "abort"        # Abort on panic – reduces binary size and can improve performance.
+strip = "symbols"
+overflow-checks = false  # Disable integer overflow checks – improves performance but risky; keep true for safety.
 
-# Optimize for size in the wasm-release profile to reduce load times and bandwidth usage on web.
 [profile.wasm-release]
-# Default to release profile values.
+# Optimize for small binary size and fast load times.
 inherits = "release"
-# Optimize with size in mind (also try "z", sometimes it is better).
-# Slightly slows compile times, great improvements to file size and runtime performance.
-opt-level = "s"
-# Strip all debugging information from the binary to slightly reduce file size.
-strip = "debuginfo"
+opt-level = "z"        # Optimize for size (even more aggressive than "s").
+lto = "fat"            # Full LTO – significant size reduction.
+strip = "debuginfo"    # Remove debug symbols.
+panic = "abort"        # Abort on panic – essential for WASM to reduce size.

@@ -11,26 +11,39 @@ use bevy::{
 pub const ATTRIBUTE_HEX_TYPE: MeshVertexAttribute =
     MeshVertexAttribute::new("HexType", 123456, VertexFormat::Float32);
 
+const CHUNK_SIZE: i32 = 20; // 20x20 hexes per chunk
+
 #[derive(Resource)]
-pub struct BatchedHexMesh {
-    pub mesh: Handle<Mesh>,
+pub struct HexChunks {
     pub texture: Handle<Image>,
     pub material: Handle<StandardMaterial>,
-    pub entity: Option<Entity>,
+    pub chunks: Vec<HexChunk>,
 }
+
+pub struct HexChunk {
+    pub mesh: Handle<Mesh>,
+    pub entity: Entity,
+    pub q_min: i32,
+    pub r_min: i32,
+    pub q_max: i32,
+    pub r_max: i32,
+}
+
+#[derive(Resource, Default)]
+struct StaticMeshGenerated(bool);
 
 pub struct BatchedHexRendererPlugin;
 
 impl Plugin for BatchedHexRendererPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_batched_hex_assets)
-            .add_systems(Update, update_batched_hex_mesh);
+            .add_systems(Update, update_batched_hex_mesh)
+            .init_resource::<StaticMeshGenerated>();
     }
 }
 
 fn setup_batched_hex_assets(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -76,62 +89,133 @@ fn setup_batched_hex_assets(
         ..default()
     });
 
-    // Create an empty mesh (will be populated each frame)
-    let mesh = meshes.add(Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    ));
-
-    // Spawn a single entity for the batched mesh
-    let entity = commands.spawn((
-        Mesh3d(mesh.clone()),
-        MeshMaterial3d(material.clone()),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-        Visibility::Visible,
-    )).id();
-
-    commands.insert_resource(BatchedHexMesh {
-        mesh: mesh.clone(),
+    // Insert HexChunks resource with empty chunks (to be filled later)
+    commands.insert_resource(HexChunks {
         texture: texture_handle,
         material,
-        entity: Some(entity),
+        chunks: Vec::new(),
     });
 }
 
 fn update_batched_hex_mesh(
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    batched_mesh: Res<BatchedHexMesh>,
+    mut hex_chunks: ResMut<HexChunks>,
     hex_map: Res<crate::hex::map::HexMap>,
-    camera_query: Query<(&Camera, &GlobalTransform)>,
-    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    time: Res<Time>,
+    mut timer: Local<f32>,
+    mut last_hex_count: Local<usize>,
+    mut static_generated: ResMut<StaticMeshGenerated>,
 ) {
-    let (camera, camera_transform) = match camera_query.single() {
-        Ok(pair) => pair,
-        Err(_) => return,
-    };
-    let window = window_query.iter().next();
+    // If static mesh hasn't been generated yet, generate chunk meshes and spawn entities
+    if !static_generated.0 {
+        let width = hex_map.width();
+        let height = hex_map.height();
+        let chunk_size = CHUNK_SIZE;
+        let mut total_hexes = 0;
+        let mut total_chunks = 0;
 
-    // Compute visible hex range using local function
-    let (min_q, max_q, min_r, max_r) = visible_hex_range(
-        camera,
-        camera_transform,
-        &hex_map,
-        window,
-    );
+        // Iterate over chunks
+        for chunk_r in (0..height).step_by(chunk_size as usize) {
+            for chunk_q in (0..width).step_by(chunk_size as usize) {
+                let q_min = chunk_q;
+                let r_min = chunk_r;
+                let q_max = (chunk_q + chunk_size - 1).min(width - 1);
+                let r_max = (chunk_r + chunk_size - 1).min(height - 1);
 
-    // Build mesh data
+                // Generate mesh for this chunk
+                let (positions, normals, uvs, indices, hex_types) =
+                    generate_chunk_mesh(&hex_map, q_min, q_max, r_min, r_max);
+                if positions.is_empty() {
+                    continue; // chunk empty (no hexes)
+                }
+
+                // Create mesh asset
+                let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+                mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+                mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+                mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+                mesh.insert_attribute(ATTRIBUTE_HEX_TYPE, hex_types);
+                mesh.insert_indices(Indices::U32(indices));
+                let mesh_handle = meshes.add(mesh);
+
+                // Spawn entity for this chunk
+                let entity = commands.spawn((
+                    Mesh3d(mesh_handle.clone()),
+                    MeshMaterial3d(hex_chunks.material.clone()),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                    Visibility::Visible,
+                )).id();
+
+                // Store chunk info
+                hex_chunks.chunks.push(HexChunk {
+                    mesh: mesh_handle,
+                    entity,
+                    q_min,
+                    r_min,
+                    q_max,
+                    r_max,
+                });
+
+                total_hexes += (q_max - q_min + 1) * (r_max - r_min + 1);
+                total_chunks += 1;
+            }
+        }
+
+        println!("Static chunk meshes generated: {} chunks, {} hexes", total_chunks, total_hexes);
+        static_generated.0 = true;
+        *last_hex_count = total_hexes as usize;
+        return;
+    }
+
+    // After static mesh generation, we could skip further updates, but we keep the logging
+    // Log hex count every second (just for monitoring)
+    *timer += time.delta_secs();
+    if *timer >= 1.0 {
+        let hex_count = hex_map.width() * hex_map.height();
+        if *last_hex_count != hex_count as usize {
+            println!("All hexes: {}", hex_count);
+            *last_hex_count = hex_count as usize;
+        }
+        *timer = 0.0;
+    }
+}
+
+fn generate_unit_hex_vertices(size: f32) -> Vec<(f32, f32)> {
+    let rotation = std::f32::consts::PI / 6.0;
+    let mut vertices = Vec::with_capacity(7);
+    for i in 0..6 {
+        let angle = (i as f32) * std::f32::consts::PI / 3.0 + rotation;
+        let x = size * angle.cos();
+        let z = size * angle.sin();
+        vertices.push((x, z));
+    }
+    vertices.push((0.0, 0.0)); // center
+    vertices
+}
+
+fn generate_full_mesh(hex_map: &crate::hex::map::HexMap) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>, Vec<f32>) {
+    generate_chunk_mesh(hex_map, 0, hex_map.width() - 1, 0, hex_map.height() - 1)
+}
+
+fn generate_chunk_mesh(
+    hex_map: &crate::hex::map::HexMap,
+    q_min: i32,
+    q_max: i32,
+    r_min: i32,
+    r_max: i32,
+) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>, Vec<f32>) {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
     let mut indices = Vec::new();
     let mut hex_types = Vec::new();
 
-    // Precompute unit hex vertices (same as in hex_renderer)
     let unit_vertices = generate_unit_hex_vertices(HEX_SIZE);
-
     let mut vertex_offset = 0;
-    for r in min_r..=max_r {
-        for q in min_q..=max_q {
+
+    for r in r_min..=r_max {
+        for q in q_min..=q_max {
             let Some(hex) = hex_map.get_hex(q, r) else {
                 continue;
             };
@@ -143,7 +227,7 @@ fn update_batched_hex_mesh(
             for (vx, vz) in unit_vertices.iter() {
                 positions.push([x + vx, 0.0, z + vz]);
                 normals.push([0.0, 1.0, 0.0]);
-                uvs.push([type_index as f32 / 8.0, 0.5]); // u based on type, v center
+                uvs.push([type_index as f32 / 8.0, 0.5]);
                 hex_types.push(type_index as f32);
             }
 
@@ -160,27 +244,7 @@ fn update_batched_hex_mesh(
         }
     }
 
-    // Update the mesh
-    if let Some(mesh) = meshes.get_mut(&batched_mesh.mesh) {
-        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-        mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-        mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-        mesh.insert_attribute(ATTRIBUTE_HEX_TYPE, hex_types);
-        mesh.insert_indices(Indices::U32(indices));
-    }
-}
-
-fn generate_unit_hex_vertices(size: f32) -> Vec<(f32, f32)> {
-    let rotation = std::f32::consts::PI / 6.0;
-    let mut vertices = Vec::with_capacity(7);
-    for i in 0..6 {
-        let angle = (i as f32) * std::f32::consts::PI / 3.0 + rotation;
-        let x = size * angle.cos();
-        let z = size * angle.sin();
-        vertices.push((x, z));
-    }
-    vertices.push((0.0, 0.0)); // center
-    vertices
+    (positions, normals, uvs, indices, hex_types)
 }
 
 fn hex_type_to_index(hex_type: HexType) -> u8 {
