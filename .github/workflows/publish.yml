@@ -97,7 +97,5 @@ jobs:
           bin: GameTestRust
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          archive: true
+          archive: GameTestRust-${{ matrix.target }}
           include: assets
-          build-tool: none
-          archive-name: GameTestRust-${{ matrix.target }}
