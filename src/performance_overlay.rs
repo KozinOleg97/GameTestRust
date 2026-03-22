@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy::ui::{Node, PositionType, Val, BackgroundColor};
-use bevy::text::{TextFont, TextColor};
+use bevy::text::{TextColor, TextFont};
+use bevy::ui::{BackgroundColor, Node, PositionType, Val};
 use std::collections::VecDeque;
 
 /// Configuration for the performance overlay.
@@ -159,8 +159,8 @@ fn manage_overlay_ui(
             parent.spawn((
                 PerformanceText,
                 Text::new(format!("FPS: {:.1}\nFrame: {:.2} ms",
-                    metrics.fps(),
-                    metrics.frame_time_ms()
+                                  metrics.fps(),
+                                  metrics.frame_time_ms()
                 )),
                 TextFont {
                     font,
@@ -195,8 +195,8 @@ fn update_overlay_text(
     let mut updated = false;
     for mut text in text_query.iter_mut() {
         text.0 = format!("FPS: {:.1}\nFrame: {:.2} ms",
-            metrics.fps(),
-            metrics.frame_time_ms()
+                         metrics.fps(),
+                         metrics.frame_time_ms()
         );
         updated = true;
     }

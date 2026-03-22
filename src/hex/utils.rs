@@ -19,10 +19,10 @@ pub fn distance_coords(a: &HexCoordinates, b: &HexCoordinates) -> i32 {
     let z1 = a.r();
     let x2 = b.q();
     let z2 = b.r();
-    
+
     let y1 = -(x1 + z1);
     let y2 = -(x2 + z2);
-    
+
     ((x1 - x2).abs() + (y1 - y2).abs() + (z1 - z2).abs()) / 2
 }
 
@@ -36,7 +36,7 @@ pub fn get_neighbor_coordinates(coordinates: &HexCoordinates, direction: usize) 
     if direction >= 6 {
         panic!("Direction must be between 0 and 5");
     }
-    
+
     let dir = HEX_DIRECTIONS[direction];
     HexCoordinates::new(coordinates.q() + dir.q(), coordinates.r() + dir.r())
 }
@@ -61,7 +61,7 @@ pub fn axial_to_pixel(coordinates: &HexCoordinates, hex_size: f32) -> (f32, f32)
 pub fn get_neighbor_coordinates_simple(coordinates: &HexCoordinates) -> [HexCoordinates; 6] {
     let q = coordinates.q();
     let r = coordinates.r();
-    
+
     [
         HexCoordinates::new(q + 1, r),      // East
         HexCoordinates::new(q + 1, r - 1),  // Northeast

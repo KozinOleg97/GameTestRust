@@ -50,7 +50,7 @@ impl HexType {
             HexType::Coast => (0.8, 0.8, 0.6, 1.0),  // Beige for coast
             HexType::Desert => (0.95, 0.9, 0.11, 1.0), // Yellow for desert
             HexType::Swamp => (0.1, 0.2, 0.1, 1.0),  // Dark green for swamp
-            &HexType::Empty => (0.0, 0.0, 0.0, 1.0),  
+            &HexType::Empty => (0.0, 0.0, 0.0, 1.0),
         }
     }
 }

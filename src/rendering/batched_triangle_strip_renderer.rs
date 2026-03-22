@@ -1,12 +1,10 @@
-use crate::hex::{HexType, HEX_SIZE};
 use crate::hex::utils::{HEX_WIDTH, Y_PITCH};
+use crate::hex::{HexType, HEX_SIZE};
 use bevy::{
     asset::RenderAssetUsages,
     image::ImageSampler,
     prelude::*,
-    render::{
-        render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
-    },
+    render::render_resource::{Extent3d, PrimitiveTopology, TextureDimension, TextureFormat},
 };
 
 // Вершины гекса в порядке, используемом в Java-рендерере:
@@ -91,7 +89,7 @@ fn setup_assets(
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     );
-    texture.sampler = ImageSampler::nearest(); 
+    texture.sampler = ImageSampler::nearest();
 
     let texture_handle = images.add(texture);
 

@@ -1,5 +1,5 @@
-use crate::hex::{HexCoordinates, HexType, HEX_SIZE};
 use crate::hex::utils::{HEX_WIDTH, Y_PITCH};
+use crate::hex::{HexCoordinates, HexType, HEX_SIZE};
 use bevy::{
     asset::RenderAssetUsages,
     mesh::{Indices, MeshVertexAttribute},
@@ -157,6 +157,8 @@ fn update_batched_hex_mesh(
                     r_max,
                 });
 
+
+                println!("chunks - {}", hex_chunks.chunks.len());
                 total_hexes += (q_max - q_min + 1) * (r_max - r_min + 1);
                 total_chunks += 1;
             }
