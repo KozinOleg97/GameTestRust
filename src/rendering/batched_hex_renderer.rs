@@ -131,7 +131,10 @@ fn update_batched_hex_mesh(
                 }
 
                 // Create mesh asset
-                let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+                let mut mesh = Mesh::new(
+                    PrimitiveTopology::TriangleList,
+                    RenderAssetUsages::default(),
+                );
                 mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
                 mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
                 mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
@@ -140,12 +143,14 @@ fn update_batched_hex_mesh(
                 let mesh_handle = meshes.add(mesh);
 
                 // Spawn entity for this chunk
-                let entity = commands.spawn((
-                    Mesh3d(mesh_handle.clone()),
-                    MeshMaterial3d(hex_chunks.material.clone()),
-                    Transform::from_xyz(0.0, 0.0, 0.0),
-                    Visibility::Visible,
-                )).id();
+                let entity = commands
+                    .spawn((
+                        Mesh3d(mesh_handle.clone()),
+                        MeshMaterial3d(hex_chunks.material.clone()),
+                        Transform::from_xyz(0.0, 0.0, 0.0),
+                        Visibility::Visible,
+                    ))
+                    .id();
 
                 // Store chunk info
                 hex_chunks.chunks.push(HexChunk {
@@ -157,14 +162,16 @@ fn update_batched_hex_mesh(
                     r_max,
                 });
 
-
                 println!("chunks - {}", hex_chunks.chunks.len());
                 total_hexes += (q_max - q_min + 1) * (r_max - r_min + 1);
                 total_chunks += 1;
             }
         }
 
-        println!("Static chunk meshes generated: {} chunks, {} hexes", total_chunks, total_hexes);
+        println!(
+            "Static chunk meshes generated: {} chunks, {} hexes",
+            total_chunks, total_hexes
+        );
         static_generated.0 = true;
         *last_hex_count = total_hexes as usize;
         return;
@@ -196,7 +203,15 @@ fn generate_unit_hex_vertices(size: f32) -> Vec<(f32, f32)> {
     vertices
 }
 
-fn generate_full_mesh(hex_map: &crate::hex::map::HexMap) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>, Vec<f32>) {
+fn generate_full_mesh(
+    hex_map: &crate::hex::map::HexMap,
+) -> (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Vec<u32>,
+    Vec<f32>,
+) {
     generate_chunk_mesh(hex_map, 0, hex_map.width() - 1, 0, hex_map.height() - 1)
 }
 
@@ -206,7 +221,13 @@ fn generate_chunk_mesh(
     q_max: i32,
     r_min: i32,
     r_max: i32,
-) -> (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>, Vec<f32>) {
+) -> (
+    Vec<[f32; 3]>,
+    Vec<[f32; 3]>,
+    Vec<[f32; 2]>,
+    Vec<u32>,
+    Vec<f32>,
+) {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();

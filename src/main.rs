@@ -40,7 +40,7 @@ fn main() {
 
 fn setup(mut commands: Commands) {
     // Set clear color to blue to verify window rendering
-    commands.insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)));
+    commands.insert_resource(ClearColor(Color::srgb(0.5, 0.5, 0.5)));
 
     // camera - position it to view the center of the hex map
     let center_q = 50;
@@ -54,9 +54,9 @@ fn setup(mut commands: Commands) {
     println!("Camera position: {:?}", camera_pos);
     println!("Camera transform: {:?}", camera_transform);
     commands.spawn((
-        Camera3d::default(),
+        Camera3d:: default(),
         Projection::Perspective(PerspectiveProjection {
-            far: 10000.0,
+            far: 1000.0,
             near: 1.0,
             fov: 90.0f32.to_radians(), // wider field of view
             ..default()
