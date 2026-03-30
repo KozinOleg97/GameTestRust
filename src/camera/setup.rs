@@ -1,14 +1,13 @@
 use crate::camera::controller::CameraController;
+use crate::game::GameConfig;
 use crate::game::WorldGeneratedEvent;
 use crate::hex::{utils::axial_to_pixel, HexCoordinates, HEX_SIZE};
 use bevy::prelude::*;
-use bevy::window::WindowTheme::Light;
-use crate::game::GameConfig;
 
 pub fn setup_camera_on_world_generated(
     mut commands: Commands,
     mut events: MessageReader<WorldGeneratedEvent>,
-    config: Res<GameConfig>,  // добавить
+    config: Res<GameConfig>, // добавить
 ) {
     for _ in events.read() {
         // центр карты из конфигурации
@@ -20,7 +19,7 @@ pub fn setup_camera_on_world_generated(
         commands.spawn((
             Camera3d::default(),
             Projection::Perspective(PerspectiveProjection {
-                far: 5000.0,           // увеличить
+                far: 5000.0, // увеличить
                 near: 1.0,
                 fov: 90.0f32.to_radians(),
                 ..default()

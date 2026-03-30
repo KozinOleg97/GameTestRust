@@ -6,9 +6,17 @@
 //
 // pub use plugin::HexRenderPlugin;
 
-mod mesh_builder;
+mod chunk_renderer;
+mod full_mesh_renderer;
 mod materials;
-mod chunk_manager;
+mod mesh_builder;
 mod plugin;
 
+pub use full_mesh_renderer::FullMeshRenderingPlugin;
 pub use plugin::HexRenderingPlugin;
+
+/// Режимы рендеринга шестиугольников
+pub enum RenderingMode {
+    Chunked,
+    FullMesh,
+}

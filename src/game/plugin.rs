@@ -5,8 +5,7 @@ use super::config::GameConfig;
 use crate::camera::CameraPlugin;
 use crate::game::{GameState, WorldGeneratedEvent};
 use crate::generation::WorldGenerationPlugin;
-use crate::rendering::HexRenderingPlugin;
-use bevy::ecs::error::info;
+use crate::rendering::{FullMeshRenderingPlugin, HexRenderingPlugin, RenderingMode};
 
 use crate::ui::UIPlugin;
 use bevy::prelude::*;
@@ -21,7 +20,9 @@ impl Plugin for GamePlugin {
             .add_plugins((
                 CameraPlugin,
                 WorldGenerationPlugin,
-                HexRenderingPlugin,
+                HexRenderingPlugin {
+                    mode: RenderingMode::FullMesh, // Chunked  FullMesh
+                },
                 UIPlugin,
             ))
             .add_systems(Update, handle_pause.run_if(in_state(GameState::Playing)))

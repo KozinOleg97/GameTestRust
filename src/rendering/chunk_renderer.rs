@@ -1,5 +1,6 @@
 use crate::game::WorldGeneratedEvent;
 use crate::hex::map::HexMap;
+use crate::rendering::materials::setup_hex_materials;
 use crate::rendering::mesh_builder::generate_chunk_mesh;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, MeshVertexAttribute};
@@ -10,6 +11,19 @@ pub const ATTRIBUTE_HEX_TYPE: MeshVertexAttribute =
     MeshVertexAttribute::new("HexType", 123456, VertexFormat::Float32);
 const CHUNK_SIZE: i32 = 20;
 
+pub struct ChunkRenderingPlugin;
+
+impl Plugin for ChunkRenderingPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, init_rendering_resources);
+        app.add_systems(
+            Update,
+            create_chunks.run_if(on_message::<WorldGeneratedEvent>),
+        );
+    }
+}
+
+/// Ресурс для хранения данных рендеринга чанков
 #[derive(Resource)]
 pub struct HexChunks {
     pub texture: Handle<Image>,
@@ -24,6 +38,19 @@ pub struct HexChunk {
     pub r_min: i32,
     pub q_max: i32,
     pub r_max: i32,
+}
+
+fn init_rendering_resources(
+    mut commands: Commands,
+    images: ResMut<Assets<Image>>,
+    materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let (texture, material) = setup_hex_materials(images, materials);
+    commands.insert_resource(HexChunks {
+        texture,
+        material,
+        chunks: Vec::new(),
+    });
 }
 
 pub fn create_chunks(
