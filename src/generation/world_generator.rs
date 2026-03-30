@@ -1,3 +1,4 @@
+use bevy::log::info;
 use crate::generation::PerlinNoise;
 use crate::hex::{Hex, HexCoordinates, HexMap, HexType};
 
@@ -30,6 +31,8 @@ impl ProceduralWorldGenerator {
     }
 
     pub fn generate_world(&self) -> HexMap {
+        info!("Generating world...");
+
         let mut hex_map = HexMap::new(self.width, self.height);
 
         // Generate hexes for the entire map
@@ -42,7 +45,7 @@ impl ProceduralWorldGenerator {
             }
         }
 
-        println!("Generated world with {} hexes", hex_map.size());
+        info!("Generated world with {} hexes", hex_map.size());
 
         hex_map
     }

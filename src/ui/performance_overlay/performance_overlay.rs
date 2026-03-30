@@ -3,12 +3,12 @@ use bevy::text::{TextColor, TextFont};
 use bevy::ui::{BackgroundColor, Node, PositionType, Val};
 use std::collections::VecDeque;
 
-/// Configuration for the performance overlay.
+/// Configuration for the performance performance_overlay.
 #[derive(Resource, Clone)]
 pub struct PerformanceOverlayConfig {
-    /// Whether the overlay is visible.
+    /// Whether the performance_overlay is visible.
     pub visible: bool,
-    /// Position of the overlay (top-left corner) in pixels.
+    /// Position of the performance_overlay (top-left corner) in pixels.
     pub position: (f32, f32),
     /// Font size in pixels.
     pub font_size: f32,
@@ -18,7 +18,7 @@ pub struct PerformanceOverlayConfig {
     pub background_color: Option<Color>,
     /// Number of frames to average for FPS calculation.
     pub fps_average_frames: usize,
-    /// Key to toggle overlay visibility.
+    /// Key to toggle performance_overlay visibility.
     pub toggle_key: KeyCode,
 }
 
@@ -100,10 +100,7 @@ impl PerformanceMetrics {
 }
 
 /// System that updates performance metrics each frame.
-fn update_performance_metrics(
-    time: Res<Time>,
-    mut metrics: ResMut<PerformanceMetrics>,
-) {
+pub(crate) fn update_performance_metrics(time: Res<Time>, mut metrics: ResMut<PerformanceMetrics>) {
     metrics.update(time.delta_secs());
 }
 
@@ -114,19 +111,19 @@ struct PerformanceOverlayRoot;
 #[derive(Component)]
 struct PerformanceText;
 
-/// System that toggles overlay visibility when the toggle key is pressed.
-fn toggle_overlay_visibility(
+/// System that toggles performance_overlay visibility when the toggle key is pressed.
+pub(crate) fn toggle_overlay_visibility(
     keys: Res<ButtonInput<KeyCode>>,
     mut config: ResMut<PerformanceOverlayConfig>,
 ) {
     if keys.just_pressed(config.toggle_key) {
         config.visible = !config.visible;
-        info!("Performance overlay visibility toggled: {}", config.visible);
+        info!("Performance performance_overlay visibility toggled: {}", config.visible);
     }
 }
 
-/// System that spawns or despawns the overlay UI based on visibility.
-fn manage_overlay_ui(
+/// System that spawns or despawns the performance_overlay UI based on visibility.
+pub(crate) fn manage_overlay_ui(
     mut commands: Commands,
     config: Res<PerformanceOverlayConfig>,
     metrics: Res<PerformanceMetrics>,
@@ -135,19 +132,21 @@ fn manage_overlay_ui(
 ) {
     let is_spawned = !root_query.is_empty();
     if config.visible && !is_spawned {
-        // Spawn overlay
+        // Spawn performance_overlay
         let (x, y) = config.position;
         let font = asset_server.load("fonts/FiraSans-Bold.ttf"); // default font, ensure it exists
 
-        let root_id = commands.spawn((
-            PerformanceOverlayRoot,
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(x),
-                top: Val::Px(y),
-                ..default()
-            },
-        )).id();
+        let root_id = commands
+            .spawn((
+                PerformanceOverlayRoot,
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(x),
+                    top: Val::Px(y),
+                    ..default()
+                },
+            ))
+            .id();
 
         // Optional background
         if let Some(bg_color) = config.background_color {
@@ -158,9 +157,10 @@ fn manage_overlay_ui(
         commands.entity(root_id).with_children(|parent| {
             parent.spawn((
                 PerformanceText,
-                Text::new(format!("FPS: {:.1}\nFrame: {:.2} ms",
-                                  metrics.fps(),
-                                  metrics.frame_time_ms()
+                Text::new(format!(
+                    "FPS: {:.1}\nFrame: {:.2} ms",
+                    metrics.fps(),
+                    metrics.frame_time_ms()
                 )),
                 TextFont {
                     font,
@@ -170,18 +170,18 @@ fn manage_overlay_ui(
                 TextColor(config.text_color),
             ));
         });
-        info!("Performance overlay spawned");
+        info!("Performance performance_overlay spawned");
     } else if !config.visible && is_spawned {
-        // Despawn overlay
+        // Despawn performance_overlay
         for entity in root_query.iter() {
             commands.entity(entity).despawn();
         }
-        info!("Performance overlay despawned");
+        info!("Performance performance_overlay despawned");
     }
 }
 
-/// System that updates the overlay text each frame.
-fn update_overlay_text(
+/// System that updates the performance_overlay text each frame.
+pub(crate) fn update_overlay_text(
     config: Res<PerformanceOverlayConfig>,
     metrics: Res<PerformanceMetrics>,
     mut text_query: Query<&mut Text, With<PerformanceText>>,
@@ -194,32 +194,39 @@ fn update_overlay_text(
     *timer += time.delta_secs();
     let mut updated = false;
     for mut text in text_query.iter_mut() {
-        text.0 = format!("FPS: {:.1}\nFrame: {:.2} ms",
-                         metrics.fps(),
-                         metrics.frame_time_ms()
+        text.0 = format!(
+            "FPS: {:.1}\nFrame: {:.2} ms",
+            metrics.fps(),
+            metrics.frame_time_ms()
         );
         updated = true;
     }
     if updated && *timer >= 1.0 {
-        info!("Performance overlay updated: FPS {:.1}, Frame time {:.2} ms",
-            metrics.fps(), metrics.frame_time_ms());
+        info!(
+            "Performance performance_overlay updated: FPS {:.1}, Frame time {:.2} ms",
+            metrics.fps(),
+            metrics.frame_time_ms()
+        );
         *timer = 0.0;
     }
 }
 
-/// Plugin for performance overlay.
+/// Plugin for performance performance_overlay.
 pub struct PerformanceOverlayPlugin;
 
 impl Plugin for PerformanceOverlayPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<PerformanceMetrics>()
+        app.init_resource::<PerformanceMetrics>()
             .init_resource::<PerformanceOverlayConfig>()
-            .add_systems(Update, (
-                update_performance_metrics,
-                toggle_overlay_visibility,
-                manage_overlay_ui,
-                update_overlay_text,
-            ).chain());
+            .add_systems(
+                Update,
+                (
+                    update_performance_metrics,
+                    toggle_overlay_visibility,
+                    manage_overlay_ui,
+                    update_overlay_text,
+                )
+                    .chain(),
+            );
     }
 }

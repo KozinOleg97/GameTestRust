@@ -1,5 +1,14 @@
-pub mod batched_hex_renderer;
-pub mod batched_triangle_strip_renderer;
-pub mod hex_renderer;
+// mod batched_hex_renderer;
+// mod mesh_builder;
+// mod plugin;
+// mod materials;
+// mod chunk_manager;
+//
+// pub use plugin::HexRenderPlugin;
 
-pub use hex_renderer::*;
+mod mesh_builder;
+mod materials;
+mod chunk_manager;
+mod plugin;
+
+pub use plugin::HexRenderingPlugin;

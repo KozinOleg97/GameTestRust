@@ -2,14 +2,6 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-pub struct CameraControllerPlugin;
-
-impl Plugin for CameraControllerPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, camera_control_system);
-    }
-}
-
 #[derive(Component)]
 pub struct CameraController {
     pub pan_speed: f32,    // чувствительность панорамирования
@@ -37,22 +29,19 @@ impl Default for CameraController {
     }
 }
 
-fn camera_control_system(
+pub fn camera_control_system(
     mouse_btn: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: MessageReader<MouseMotion>,
     mut scroll: MessageReader<MouseWheel>,
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut query: Query<
-        (
-            &mut Transform,
-            &mut Projection,
-            &CameraController,
-            &Camera,
-            &GlobalTransform,
-        ),
-        With<Camera>,
-    >,
+    mut query: Query<(
+        &mut Transform,
+        &mut Projection,
+        &CameraController,
+        &Camera,
+        &GlobalTransform,
+    )>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
     let Ok((mut transform, mut projection, controller, camera, global_transform)) =
