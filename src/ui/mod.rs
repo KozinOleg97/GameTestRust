@@ -1,6 +1,5 @@
-mod plugin;
-mod performance_overlay;
 mod main_menu;
-
+mod performance_overlay;
+mod plugin;
 
 pub use plugin::UIPlugin;

@@ -1,10 +1,9 @@
-use crate::hex::{HexCoordinates, HexType};
 use bevy::prelude::*;
 
-#[derive(Message)] 
+#[derive(Message)]
 pub struct WorldGeneratedEvent;
 
-// #[derive(Message)] 
+// #[derive(Message)]
 // pub struct HexChangedEvent {
 //     pub coordinates: HexCoordinates,
 //     pub old_type: HexType,

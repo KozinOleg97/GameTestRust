@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use crate::hex::map::HexMap;
 use crate::hex::utils::axial_to_pixel;
 use crate::hex::{HexCoordinates, HexType, HEX_SIZE};
+use std::collections::HashMap;
 
 use bevy::mesh::{Indices, Mesh};
 use bevy::prelude::*;
@@ -140,26 +140,23 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
     mesh
 }
 
-
-
-
 // /// Генерирует меш с общими вершинами для всей карты.
 // /// Каждый гекс представляется 6 углами, вершины на стыках используются повторно.
 // /// Для хранения типа гекса используются вершинные цвета (R,G,B,A).
 // pub fn generate_shared_vertices_mesh(hex_map: &HexMap) -> Mesh {
 //     info!("Generating mesh with shared vertices");
-// 
+//
 //     let unit_vertices = generate_unit_hex_vertices(HEX_SIZE); // 6 углов + центр? Нам нужны только углы
 //     // unit_vertices[0..6] – углы, unit_vertices[6] – центр (не используем)
 //     let corners = &unit_vertices[0..6]; // берём только углы
-// 
+//
 //     // Словарь для поиска индекса вершины по ключу
 //     // Ключом будет отсортированная тройка координат трёх гексов, сходящихся в углу
 //     let mut vertex_map: HashMap<[i32; 6], u32> = HashMap::new();
 //     let mut positions: Vec<[f32; 3]> = Vec::new();
 //     let mut colors: Vec<[f32; 4]> = Vec::new(); // вершинные цвета (RGBA)
 //     let mut indices: Vec<u32> = Vec::new();
-// 
+//
 //     // Вспомогательная функция для получения трёх гексов, образующих угол
 //     // Для гекса (q,r) и направления i (0..5) возвращает три координаты (q,r) гексов,
 //     // которые встречаются в этом углу.
@@ -184,19 +181,19 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //         triple.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
 //         triple
 //     }
-// 
+//
 //     for r in 0..hex_map.height() {
 //         for q in 0..hex_map.width() {
 //             let hex = hex_map.get_hex(q, r).expect("hex exists");
 //             let hex_type = *hex.hex_type();
 //             let (center_x, center_z) = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
-// 
+//
 //             // Для каждого угла гекса
 //             for i in 0..6 {
 //                 let (vx, vz) = corners[i];
 //                 let world_x = center_x + vx;
 //                 let world_z = center_z + vz;
-// 
+//
 //                 // Получаем три гекса, которые делят этот угол
 //                 let triple = get_three_hexes(q, r, i);
 //                 // Ключ – плоский массив из шести целых чисел
@@ -205,17 +202,17 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //                     triple[1].0, triple[1].1,
 //                     triple[2].0, triple[2].1,
 //                 ];
-// 
+//
 //                 // Если вершина уже существует, берём её индекс
 //                 if let Some(&idx) = vertex_map.get(&key) {
 //                     indices.push(idx);
 //                     continue;
 //                 }
-// 
+//
 //                 // Иначе создаём новую вершину
 //                 let idx = positions.len() as u32;
 //                 positions.push([world_x, 0.0, world_z]);
-// 
+//
 //                 // Задаём цвет в зависимости от типа гекса (можно настроить позже)
 //                 let hex_color = match hex_type {
 //                     HexType::Empty    => [0.0, 0.0, 0.0, 1.0],
@@ -228,20 +225,20 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //                     HexType::Swamp    => [0.5, 0.0, 0.5, 1.0],
 //                 };
 //                 colors.push(hex_color);
-// 
+//
 //                 vertex_map.insert(key, idx);
 //                 indices.push(idx);
 //             }
 //         }
 //     }
-// 
+//
 //     // Теперь нужно построить индексы треугольников для каждого гекса.
 //     // Мы имеем список индексов вершин в порядке обхода гексов, но вершины
 //     // были добавлены в произвольном порядке. Чтобы восстановить, какие шесть
 //     // вершин принадлежат конкретному гексу, можно либо сохранять их при генерации,
 //     // либо перебрать все гексы и собрать индексы заново, используя vertex_map.
 //     // Для простоты пересоберём индексы треугольников, опираясь на те же тройки.
-// 
+//
 //     let mut triangle_indices = Vec::new();
 //     for r in 0..hex_map.height() {
 //         for q in 0..hex_map.width() {
@@ -266,7 +263,7 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //             }
 //         }
 //     }
-// 
+//
 //     let mut mesh = Mesh::new(
 //         PrimitiveTopology::TriangleList,
 //         bevy::asset::RenderAssetUsages::default(),
@@ -274,6 +271,6 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
 //     mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
 //     mesh.insert_indices(Indices::U32(triangle_indices));
-// 
+//
 //     mesh
 // }

@@ -1,6 +1,6 @@
-use bevy::log::info;
 use crate::generation::PerlinNoise;
 use crate::hex::{Hex, HexCoordinates, HexMap, HexType};
+use bevy::log::info;
 
 pub struct ProceduralWorldGenerator {
     width: i32,

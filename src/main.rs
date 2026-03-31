@@ -6,8 +6,8 @@ mod camera;
 mod game;
 mod generation;
 mod hex;
-mod ui;
 mod rendering;
+mod ui;
 
 fn main() {
     App::new()

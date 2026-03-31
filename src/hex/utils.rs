@@ -63,11 +63,11 @@ pub fn get_neighbor_coordinates_simple(coordinates: &HexCoordinates) -> [HexCoor
     let r = coordinates.r();
 
     [
-        HexCoordinates::new(q + 1, r),      // East
-        HexCoordinates::new(q + 1, r - 1),  // Northeast
-        HexCoordinates::new(q, r - 1),      // Northwest
-        HexCoordinates::new(q - 1, r),      // West
-        HexCoordinates::new(q - 1, r + 1),  // Southwest
-        HexCoordinates::new(q, r + 1),       // Southeast
+        HexCoordinates::new(q + 1, r),     // East
+        HexCoordinates::new(q + 1, r - 1), // Northeast
+        HexCoordinates::new(q, r - 1),     // Northwest
+        HexCoordinates::new(q - 1, r),     // West
+        HexCoordinates::new(q - 1, r + 1), // Southwest
+        HexCoordinates::new(q, r + 1),     // Southeast
     ]
 }

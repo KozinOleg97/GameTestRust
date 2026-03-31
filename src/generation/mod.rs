@@ -1,7 +1,7 @@
 mod noise;
-mod world_generator;
 mod plugin;
+mod world_generator;
 
 pub use noise::PerlinNoise;
-pub use world_generator::ProceduralWorldGenerator;
 pub use plugin::WorldGenerationPlugin;
+pub use world_generator::ProceduralWorldGenerator;

@@ -46,7 +46,7 @@ fn create_full_mesh_system(
 ) {
     for _ in events.read() {
         // Despawn old entity if it exists
-        if let Some(ref map_entity) = map_entity { // borrow instead of move
+        if let Some(ref map_entity) = map_entity {
             commands.entity(map_entity.0).despawn();
         }
 

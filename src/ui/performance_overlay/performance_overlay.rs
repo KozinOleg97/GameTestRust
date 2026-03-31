@@ -118,7 +118,10 @@ pub(crate) fn toggle_overlay_visibility(
 ) {
     if keys.just_pressed(config.toggle_key) {
         config.visible = !config.visible;
-        info!("Performance performance_overlay visibility toggled: {}", config.visible);
+        info!(
+            "Performance performance_overlay visibility toggled: {}",
+            config.visible
+        );
     }
 }
 

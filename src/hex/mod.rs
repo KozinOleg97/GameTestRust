@@ -1,8 +1,8 @@
 pub mod coordinates;
 pub mod hex;
 pub mod hex_type;
-pub mod utils;
 pub mod map;
+pub mod utils;
 
 pub use coordinates::HexCoordinates;
 pub use hex::Hex;
