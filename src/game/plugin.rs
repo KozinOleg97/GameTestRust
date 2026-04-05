@@ -7,13 +7,29 @@ use crate::game::{GameState, WorldGeneratedEvent};
 use crate::generation::WorldGenerationPlugin;
 use crate::rendering::{FullMeshRenderingPlugin, HexRenderingPlugin, RenderingMode};
 
+use crate::game::settings::GameSettings;
 use crate::ui::UIPlugin;
 use bevy::prelude::*;
+use bevy_settings_lib::{
+    FormatKind, PersistSetting, ReloadSetting, SettingsPlugin, SettingsPluginConfig,
+    SettingsStorage,
+};
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
+        
+        /// Конфигурация файла сохранений
+        let config = SettingsPluginConfig {
+            format: FormatKind::Toml,
+            company: "MyCompany".into(),
+            project: "RustTest".into(),
+            file_name: Some("config".into()),
+            storage: SettingsStorage::SystemConfigDir,
+            ..Default::default()
+        };
+
         app.init_state::<GameState>()
             .insert_resource(GameConfig::default())
             .add_message::<WorldGeneratedEvent>()
@@ -25,6 +41,8 @@ impl Plugin for GamePlugin {
                 },
                 UIPlugin,
             ))
+            .add_plugins(SettingsPlugin::<GameSettings>::from_config(config))
+            .add_systems(Startup, reload_settings)
             .add_systems(Update, handle_pause.run_if(in_state(GameState::Playing)))
             .add_systems(Update, handle_resume.run_if(in_state(GameState::Paused)))
             .add_systems(Update, start_game.run_if(in_state(GameState::MainMenu)));
@@ -62,4 +80,16 @@ fn start_game(mut next_state: ResMut<NextState<GameState>>, keyboard: Res<Button
         // или любая другая кнопка
         next_state.set(GameState::Loading);
     }
+}
+
+fn save_initial_settings(mut commands: Commands, settings: Res<GameSettings>) {
+    commands.trigger(PersistSetting::<GameSettings> {
+        value: Some(settings.clone()),
+    });
+}
+
+fn reload_settings(mut commands: Commands) {
+    commands.trigger(ReloadSetting::<GameSettings> {
+        _phantom: std::marker::PhantomData,
+    });
 }
