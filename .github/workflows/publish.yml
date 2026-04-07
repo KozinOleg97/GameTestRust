@@ -6,18 +6,22 @@ permissions:
 on:
   push:
     tags:
-      - v[0-9]+.*       # Запуск при пуше тега вида v1.0.0 и т.п.
-  workflow_dispatch:   # Возможность ручного запуска
+      - v[0-9]+.[0-9]+.[0-9]+         # только стабильные релизы (v1.2.3)
+      - v[0-9]+.[0-9]+.[0-9]+-*       # prerelease (v1.2.3-alpha.1)
+  workflow_dispatch:
 
 jobs:
-  # Создание релиза на GitHub
+  # Создание релиза на GitHub с автоматическим описанием
   create-release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: taiki-e/create-gh-release-action@v1
+      - name: Generate changelog and create release
+        uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
 
   # Сборка и загрузка ассетов для каждой платформы
   upload-assets:
@@ -36,21 +40,34 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Ускорение кэширования зависимостей Rust (registry и build-артефакты)
+      # Проверка соответствия версии в Cargo.toml и тега
+      - name: Verify version matches tag
+        shell: bash
+        run: |
+          VERSION=$(grep -m1 '^version =' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          # Убираем суффикс prerelease для сравнения
+          TAG_VERSION=${TAG_VERSION%%-*}
+          if [ "$VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Cargo.toml version $VERSION != tag version $TAG_VERSION"
+            exit 1
+          fi
+
+      # Кэш зависимостей Rust
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
           save-if: ${{ github.ref_type == 'tag' }}
 
-      # Установка инструментов кросс-компиляции для Linux
+      # Установка кросс-компиляции для Linux
       - name: Install cross-compilation tools
         uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
         if: startsWith(matrix.os, 'ubuntu')
 
-      # Системные зависимости для Bevy (Linux)
+      # Системные зависимости Bevy (Linux)
       - name: Install system dependencies (Linux)
         run: |
           sudo apt-get update
@@ -59,7 +76,7 @@ jobs:
             libwayland-dev libegl-dev libxkbcommon-dev libgbm-dev libasound2-dev libudev-dev
         if: matrix.os == 'ubuntu-latest'
 
-      # Запуск тестов (проверка работоспособности)
+      # Тесты
       - name: Run tests
         run: cargo test --target ${{ matrix.target }}
 
@@ -67,7 +84,7 @@ jobs:
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      # Копирование ассетов (например, текстур, шейдеров) в директорию с бинарником
+      # Копирование ассетов
       - name: Copy assets
         shell: bash
         run: |
