@@ -8,27 +8,19 @@ use crate::generation::WorldGenerationPlugin;
 use crate::rendering::{FullMeshRenderingPlugin, HexRenderingPlugin, RenderingMode};
 
 use crate::game::settings::GameSettings;
+use crate::game::settings_config::get_settings_config;
 use crate::ui::UIPlugin;
 use bevy::prelude::*;
 use bevy_settings_lib::{
-    FormatKind, PersistSetting, ReloadSetting, SettingsPlugin, SettingsPluginConfig,
-    SettingsStorage,
+    PersistSetting, ReloadSetting, SettingsPlugin, SettingsPluginConfig, SettingsStorage,
 };
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        
         /// Конфигурация файла сохранений
-        let config = SettingsPluginConfig {
-            format: FormatKind::Toml,
-            company: "MyCompany".into(),
-            project: "RustTest".into(),
-            file_name: Some("config".into()),
-            storage: SettingsStorage::SystemConfigDir,
-            ..Default::default()
-        };
+        let config = get_settings_config();
 
         app.init_state::<GameState>()
             .insert_resource(GameConfig::default())

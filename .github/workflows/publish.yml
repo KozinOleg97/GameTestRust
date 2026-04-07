@@ -36,18 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Кэш Cargo для ускорения сборки
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      # Ускорение кэширования зависимостей Rust (registry и build-артефакты)
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target/${{ matrix.target }}
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-cargo-
-            ${{ runner.os }}-cargo-
+          key: ${{ matrix.target }}
+          save-if: ${{ github.ref_type == 'tag' }}
 
       # Установка инструментов кросс-компиляции для Linux
       - name: Install cross-compilation tools
