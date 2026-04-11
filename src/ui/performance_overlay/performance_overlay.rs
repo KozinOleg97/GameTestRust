@@ -3,8 +3,11 @@ use bevy::prelude::*;
 use bevy::text::{TextColor, TextFont};
 use bevy::ui::{BackgroundColor, Node, PositionType, Val};
 use bevy_settings_lib::{PersistSetting, ReloadSetting};
-use std::collections::VecDeque;
 
+// --- Импорты для диагностики Bevy ---
+use bevy::diagnostic::{
+    DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin,
+};
 
 // -----------------------------------------------------------------------------
 // Компоненты для UI оверлея
@@ -16,70 +19,29 @@ struct PerformanceOverlayRoot;
 struct PerformanceText;
 
 // -----------------------------------------------------------------------------
-// Метрики производительности (без изменений)
+// Вспомогательная функция: получение метрик из DiagnosticsStore
 // -----------------------------------------------------------------------------
-#[derive(Resource)]
-pub struct PerformanceMetrics {
-    frame_times: VecDeque<f32>,
-    fps: f32,
-    accumulated_time: f32,
-    accumulated_frames: usize,
-    last_frame_time: f32,
-}
-
-impl Default for PerformanceMetrics {
-    fn default() -> Self {
-        Self {
-            frame_times: VecDeque::with_capacity(120),
-            fps: 0.0,
-            accumulated_time: 0.0,
-            accumulated_frames: 0,
-            last_frame_time: 0.0,
-        }
-    }
-}
-
-impl PerformanceMetrics {
-    pub fn update(&mut self, delta_seconds: f32) {
-        self.last_frame_time = delta_seconds;
-        self.frame_times.push_back(delta_seconds);
-        if self.frame_times.len() > 120 {
-            self.frame_times.pop_front();
-        }
-        const SMOOTHING: f32 = 0.05;
-        let current_fps = 1.0 / delta_seconds.max(0.0001);
-        self.fps = self.fps * (1.0 - SMOOTHING) + current_fps * SMOOTHING;
-    }
-
-    pub fn fps(&self) -> f32 {
-        self.fps
-    }
-
-    pub fn frame_time_ms(&self) -> f32 {
-        self.last_frame_time * 1000.0
-    }
-
-    pub fn average_frame_time_ms(&self, n: usize) -> f32 {
-        let count = self.frame_times.len().min(n);
-        if count == 0 {
-            return 0.0;
-        }
-        let sum: f32 = self.frame_times.iter().rev().take(count).sum();
-        (sum / count as f32) * 1000.0
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Система обновления метрик
-// -----------------------------------------------------------------------------
-pub(crate) fn update_performance_metrics(time: Res<Time>, mut metrics: ResMut<PerformanceMetrics>) {
-    metrics.update(time.delta_secs());
+fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32) {
+    let fps = diagnostics
+        .get(&FrameTimeDiagnosticsPlugin::FPS)
+        .and_then(|d| d.smoothed())
+        .unwrap_or(0.0);
+    let frame_time_ms = diagnostics
+        .get(&FrameTimeDiagnosticsPlugin::FRAME_TIME)
+        .and_then(|d| d.average())
+        .unwrap_or(0.0)
+        * 1000.0;
+    let entities = diagnostics
+        .get(&EntityCountDiagnosticsPlugin::ENTITY_COUNT)
+        .and_then(|d| d.value())
+        .unwrap_or(0f64);
+    (fps as f32, frame_time_ms as f32, entities as u32)
 }
 
 // -----------------------------------------------------------------------------
 // Переключение видимости оверлея с сохранением настроек
 // -----------------------------------------------------------------------------
-pub(crate) fn toggle_overlay_visibility(
+fn toggle_overlay_visibility(
     keys: Res<ButtonInput<KeyCode>>,
     mut game_settings: ResMut<GameSettings>,
     mut commands: Commands,
@@ -101,7 +63,7 @@ pub(crate) fn toggle_overlay_visibility(
 fn manage_overlay_ui(
     mut commands: Commands,
     game_settings: Res<GameSettings>,
-    metrics: Res<PerformanceMetrics>,
+    diagnostics: Res<DiagnosticsStore>,
     root_query: Query<Entity, With<PerformanceOverlayRoot>>,
     asset_server: Res<AssetServer>,
 ) {
@@ -110,8 +72,9 @@ fn manage_overlay_ui(
 
     if config.visible && !is_spawned {
         let (x, y) = config.position;
-        // Загружаем шрифт (убедитесь, что путь правильный, или используйте системный)
         let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+
+        let (fps, frame_time_ms, entities) = get_performance_metrics(&diagnostics);
 
         let mut root_cmd = commands.spawn((
             PerformanceOverlayRoot,
@@ -131,9 +94,8 @@ fn manage_overlay_ui(
             parent.spawn((
                 PerformanceText,
                 Text::new(format!(
-                    "FPS: {:.1}\nFrame: {:.2} ms",
-                    metrics.fps(),
-                    metrics.frame_time_ms()
+                    "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}",
+                    fps, frame_time_ms, entities
                 )),
                 TextFont {
                     font,
@@ -155,19 +117,21 @@ fn manage_overlay_ui(
 // -----------------------------------------------------------------------------
 // Обновление текста оверлея (если видим)
 // -----------------------------------------------------------------------------
-pub(crate) fn update_overlay_text(
+fn update_overlay_text(
     game_settings: Res<GameSettings>,
-    metrics: Res<PerformanceMetrics>,
+    diagnostics: Res<DiagnosticsStore>,
     mut text_query: Query<&mut Text, With<PerformanceText>>,
 ) {
     if !game_settings.performance_overlay.visible {
         return;
     }
+
+    let (fps, frame_time_ms, entities) = get_performance_metrics(&diagnostics);
+
     for mut text in text_query.iter_mut() {
         text.0 = format!(
-            "FPS: {:.1}\nFrame: {:.2} ms",
-            metrics.fps(),
-            metrics.frame_time_ms()
+            "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}",
+            fps, frame_time_ms, entities
         );
     }
 }
@@ -180,9 +144,8 @@ fn tuple_to_color(rgba: (f32, f32, f32, f32)) -> Color {
 }
 
 // -----------------------------------------------------------------------------
-// Наблюдатель: пересоздаём оверлей после перезагрузки настроек из файла
+// Observer: пересоздаём оверлей после перезагрузки настроек из файла
 // -----------------------------------------------------------------------------
-
 fn reload_overlay_on_settings_reload(
     _event: On<ReloadSetting<GameSettings>>,
     mut commands: Commands,
@@ -200,17 +163,19 @@ pub struct PerformanceOverlayPlugin;
 
 impl Plugin for PerformanceOverlayPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PerformanceMetrics>()
-            .add_systems(
-                Update,
-                (
-                    update_performance_metrics,
-                    toggle_overlay_visibility,
-                    manage_overlay_ui,
-                    update_overlay_text,
-                )
-                    .chain(),
+        // Добавляем встроенные диагностические плагины Bevy
+        app.add_plugins(FrameTimeDiagnosticsPlugin::default());
+        app.add_plugins(EntityCountDiagnosticsPlugin::default());
+
+        app.add_systems(
+            Update,
+            (
+                toggle_overlay_visibility,
+                manage_overlay_ui,
+                update_overlay_text,
             )
-            .add_observer(reload_overlay_on_settings_reload);
+                .chain(),
+        )
+        .add_observer(reload_overlay_on_settings_reload);
     }
 }

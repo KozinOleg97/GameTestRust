@@ -1,5 +1,7 @@
 use crate::ui::main_menu::main_menu::MainMenuPlugin;
+
 use crate::ui::performance_overlay::performance_overlay::PerformanceOverlayPlugin;
+
 use bevy::app::App;
 use bevy::prelude::Plugin;
 
