@@ -38,7 +38,7 @@ pub fn setup_camera_on_world_generated(
         commands.spawn((
             DirectionalLight {
                 illuminance: 1000.0,
-                shadows_enabled: false, // disable shadows for simplicity
+                shadow_maps_enabled: false, // disable shadows for simplicity
                 ..default()
             },
             light_transform,

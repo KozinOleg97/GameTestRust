@@ -1,7 +1,6 @@
 use crate::hex::map::HexMap;
 use crate::hex::utils::axial_to_pixel;
 use crate::hex::{HexCoordinates, HexType, HEX_SIZE};
-use std::collections::HashMap;
 
 use bevy::mesh::{Indices, Mesh};
 use bevy::prelude::*;

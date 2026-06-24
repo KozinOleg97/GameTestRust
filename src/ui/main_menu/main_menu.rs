@@ -32,7 +32,7 @@ fn spawn_main_menu(mut commands: Commands) {
             parent.spawn((
                 Text::new("Hex Game"),
                 TextFont {
-                    font_size: 48.0,
+                    font_size: FontSize::Px(48.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -55,7 +55,7 @@ fn spawn_main_menu(mut commands: Commands) {
                 .with_child((
                     Text::new("Start Game"),
                     TextFont {
-                        font_size: 24.0,
+                        font_size: FontSize::Px(24.0),
                         ..default()
                     },
                     TextColor(Color::WHITE),

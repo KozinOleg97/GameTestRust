@@ -72,7 +72,7 @@ fn manage_overlay_ui(
 
     if config.visible && !is_spawned {
         let (x, y) = config.position;
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        let font = asset_server.load("fonts/FiraSans-Bold.ttf").into();
 
         let (fps, frame_time_ms, entities) = get_performance_metrics(&diagnostics);
 
@@ -99,7 +99,7 @@ fn manage_overlay_ui(
                 )),
                 TextFont {
                     font,
-                    font_size: config.font_size,
+                    font_size: FontSize::Px(config.font_size),
                     ..default()
                 },
                 TextColor(tuple_to_color(config.text_color)),
