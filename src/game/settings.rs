@@ -1,12 +1,14 @@
 use bevy::prelude::*;
-use bevy_settings_lib::ValidatedSetting;
-use serde::{Deserialize, Serialize};
-
+use bevy_settings::{
+    ReflectSettingsGroup, SaveSettingsDeferred, SaveSettingsSync, SettingsGroup, SettingsPlugin,
+};
 
 // -----------------------------------------------------------------------------
 // Главный ресурс настроек
 // -----------------------------------------------------------------------------
-#[derive(Resource, Serialize, Deserialize, Clone, Debug, PartialEq)]
+
+#[derive(Resource, SettingsGroup, Reflect)]
+#[reflect(Resource, SettingsGroup, Default)]
 pub struct GameSettings {
     pub camera: CameraSettings,
     pub window: WindowSettings,
@@ -25,14 +27,11 @@ impl Default for GameSettings {
     }
 }
 
-impl ValidatedSetting for GameSettings {
-    fn validate(&mut self) {}
-}
-
 // -----------------------------------------------------------------------------
 // Настройки камеры (соответствуют полям CameraController)
 // -----------------------------------------------------------------------------
-#[derive(Resource, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource, Default)]
 pub struct CameraSettings {
     pub pan_speed: f32,
     pub zoom_speed: f32,
@@ -59,14 +58,15 @@ impl Default for CameraSettings {
     }
 }
 
-impl ValidatedSetting for CameraSettings {
-    fn validate(&mut self) {}
-}
+// impl ValidatedSetting for CameraSettings {
+//     fn validate(&mut self) {}
+// }
 
 // -----------------------------------------------------------------------------
 // Настройки окна
 // -----------------------------------------------------------------------------
-#[derive(Resource, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource, Default)]
 pub struct WindowSettings {
     pub width: f32,
     pub height: f32,
@@ -85,14 +85,15 @@ impl Default for WindowSettings {
     }
 }
 
-impl ValidatedSetting for WindowSettings {
-    fn validate(&mut self) {}
-}
+// impl ValidatedSetting for WindowSettings {
+//     fn validate(&mut self) {}
+// }
 
 // -----------------------------------------------------------------------------
 // Настройки FPS-оверлея (аналог PerformanceOverlayConfig)
 // -----------------------------------------------------------------------------
-#[derive(Resource, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource, Default)]
 pub struct PerformanceOverlaySettings {
     pub visible: bool,
     pub position: (f32, f32),
@@ -117,14 +118,15 @@ impl Default for PerformanceOverlaySettings {
     }
 }
 
-impl ValidatedSetting for PerformanceOverlaySettings {
-    fn validate(&mut self) {}
-}
+// impl ValidatedSetting for PerformanceOverlaySettings {
+//     fn validate(&mut self) {}
+// }
 
 // -----------------------------------------------------------------------------
 // Настройки звука (задел)
 // -----------------------------------------------------------------------------
-#[derive(Resource, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource, Default)]
 pub struct AudioSettings {
     pub master_volume: f32,
     pub music_volume: f32,
@@ -141,14 +143,15 @@ impl Default for AudioSettings {
     }
 }
 
-impl ValidatedSetting for AudioSettings {
-    fn validate(&mut self) {}
-}
+// impl ValidatedSetting for AudioSettings {
+//     fn validate(&mut self) {}
+// }
 
 // -----------------------------------------------------------------------------
 // Сериализуемые коды клавиш
 // -----------------------------------------------------------------------------
-#[derive(Resource, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Resource, Reflect, Copy, Clone)]
+#[reflect(Resource)]
 pub enum KeyCodeSettings {
     KeyW,
     KeyS,
@@ -157,7 +160,6 @@ pub enum KeyCodeSettings {
     KeyE,
     F12,
     Escape,
-    // Добавьте нужные
 }
 
 impl From<KeyCodeSettings> for KeyCode {

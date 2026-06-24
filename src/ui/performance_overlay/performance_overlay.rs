@@ -2,7 +2,7 @@ use crate::game::GameSettings;
 use bevy::prelude::*;
 use bevy::text::{TextColor, TextFont};
 use bevy::ui::{BackgroundColor, Node, PositionType, Val};
-use bevy_settings_lib::{PersistSetting, ReloadSetting};
+
 
 // --- Импорты для диагностики Bevy ---
 use bevy::diagnostic::{
@@ -44,16 +44,10 @@ fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32) {
 fn toggle_overlay_visibility(
     keys: Res<ButtonInput<KeyCode>>,
     mut game_settings: ResMut<GameSettings>,
-    mut commands: Commands,
 ) {
-    let toggle_key: KeyCode = game_settings.performance_overlay.toggle_key.clone().into();
+    let toggle_key: KeyCode = game_settings.performance_overlay.toggle_key.into();
     if keys.just_pressed(toggle_key) {
         game_settings.performance_overlay.visible = !game_settings.performance_overlay.visible;
-        commands.trigger(PersistSetting::<GameSettings> { value: None });
-        info!(
-            "Performance overlay visibility toggled: {}",
-            game_settings.performance_overlay.visible
-        );
     }
 }
 
@@ -143,18 +137,6 @@ fn tuple_to_color(rgba: (f32, f32, f32, f32)) -> Color {
     Color::srgba(rgba.0, rgba.1, rgba.2, rgba.3)
 }
 
-// -----------------------------------------------------------------------------
-// Observer: пересоздаём оверлей после перезагрузки настроек из файла
-// -----------------------------------------------------------------------------
-fn reload_overlay_on_settings_reload(
-    _event: On<ReloadSetting<GameSettings>>,
-    mut commands: Commands,
-    root_query: Query<Entity, With<PerformanceOverlayRoot>>,
-) {
-    for entity in root_query.iter() {
-        commands.entity(entity).despawn();
-    }
-}
 
 // -----------------------------------------------------------------------------
 // Плагин
@@ -175,7 +157,7 @@ impl Plugin for PerformanceOverlayPlugin {
                 update_overlay_text,
             )
                 .chain(),
-        )
-        .add_observer(reload_overlay_on_settings_reload);
+        );
+
     }
 }
