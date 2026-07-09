@@ -6,4 +6,4 @@ mod state;
 pub use events::*;
 pub use plugin::GamePlugin;
 pub use settings::GameSettings;
-pub use state::GameState;
+pub use state::{GameSessionState, PlayState};

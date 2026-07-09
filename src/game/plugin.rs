@@ -1,64 +1,66 @@
 use bevy::log;
 
 use crate::camera::CameraPlugin;
-use crate::game::{GameState, WorldGeneratedEvent};
+use crate::game::{GameSessionState, PlayState, WorldGeneratedEvent};
 use crate::generation::WorldGenerationPlugin;
 use crate::rendering::{FullMeshRenderingPlugin, HexRenderingPlugin, RenderingMode};
 
 use crate::ui::UIPlugin;
 use bevy::prelude::*;
-use bevy_settings::{SaveSettingsSync, SettingsPlugin};
+use bevy_settings::{SettingsPlugin};
 
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<GameState>()
+        app.init_state::<GameSessionState>()
+            .add_sub_state::<PlayState>()
             .add_message::<WorldGeneratedEvent>()
             .add_plugins((
                 CameraPlugin,
                 WorldGenerationPlugin,
                 HexRenderingPlugin {
-                    mode: RenderingMode::FullMesh, // Chunked  FullMesh
+                    mode: RenderingMode::FullMesh,
                 },
                 UIPlugin,
             ))
             .add_plugins(SettingsPlugin::new("org.bevy.examples.settings"))
-            .add_systems(Update, handle_pause.run_if(in_state(GameState::Playing)))
-            .add_systems(Update, handle_resume.run_if(in_state(GameState::Paused)))
-            .add_systems(Update, start_game.run_if(in_state(GameState::MainMenu)));
+            // Обработка паузы/возобновления
+            .add_systems(
+                Update,
+                handle_pause.run_if(in_state(GameSessionState::Active)),
+            )
+            // Старт игры из главного меню
+            .add_systems(
+                Update,
+                start_game.run_if(in_state(GameSessionState::MainMenu)),
+            );
     }
 }
 
 pub fn handle_pause(
     keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_state: ResMut<NextState<GameState>>,
-    current_state: Res<State<GameState>>,
+    current_play_state: Res<State<PlayState>>,
+    mut next_play_state: ResMut<NextState<PlayState>>,
 ) {
     if keyboard.just_pressed(KeyCode::Escape) {
-        if *current_state.get() == GameState::Playing {
-            next_state.set(GameState::Paused);
+        if *current_play_state.get() == PlayState::Playing {
+            next_play_state.set(PlayState::Paused);
             info!("Game is paused!");
-        }
-    }
-}
-
-fn handle_resume(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mut next_state: ResMut<NextState<GameState>>,
-    current_state: Res<State<GameState>>,
-) {
-    if keyboard.just_pressed(KeyCode::Escape) {
-        if *current_state.get() == GameState::Paused {
-            next_state.set(GameState::Playing);
+        } else if *current_play_state.get() == PlayState::Paused {
+            next_play_state.set(PlayState::Playing);
             info!("Game is playing");
         }
     }
 }
 
-fn start_game(mut next_state: ResMut<NextState<GameState>>, keyboard: Res<ButtonInput<KeyCode>>) {
+fn start_game(
+    mut next_session_state: ResMut<NextState<GameSessionState>>,
+    mut next_play_state: ResMut<NextState<PlayState>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+) {
     if keyboard.just_pressed(KeyCode::Enter) {
-        // или любая другая кнопка
-        next_state.set(GameState::Loading);
+        next_session_state.set(GameSessionState::Active);
+        next_play_state.set(PlayState::Playing);
     }
 }

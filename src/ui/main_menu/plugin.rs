@@ -1,4 +1,4 @@
-use crate::game::GameState;
+use crate::game::{GameSessionState, PlayState};
 use crate::ui::main_menu::buttons::MainMenuAction;
 use crate::ui::style::*;
 use crate::ui::widgets::{spawn_menu_root, spawn_text_button, spawn_title};
@@ -8,9 +8,9 @@ use std::thread::spawn;
 
 fn spawn_main_menu(mut commands: Commands) {
     info!("Spawned main menu");
-    commands.spawn((Camera2d, DespawnOnExit(GameState::MainMenu)));
+    commands.spawn((Camera2d, DespawnOnExit(GameSessionState::MainMenu)));
 
-    spawn_menu_root(&mut commands, GameState::MainMenu, |parent| {
+    spawn_menu_root(&mut commands, GameSessionState::MainMenu, |parent| {
         spawn_title(parent, "Hex Game");
 
         spawn_text_button(parent, "Start Game", MainMenuAction::StartGame);
@@ -24,17 +24,20 @@ fn main_menu_action(
         (&Interaction, &MainMenuAction),
         (Changed<Interaction>, With<Button>),
     >,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut next_session_state: ResMut<NextState<GameSessionState>>,
+    // mut next_play_state: ResMut<NextState<PlayState>>,
     mut commands: Commands,
 ) {
     for (interaction, action) in &mut interaction_query {
         if *interaction == Interaction::Pressed {
             match action {
                 MainMenuAction::StartGame => {
-                    next_state.set(GameState::Loading);
+                    next_session_state.set(GameSessionState::Loading);
+                    // next_play_state.set(PlayState::Playing);
+                    info!("Staring game session");
                 }
                 MainMenuAction::SaveSettings => {
-                    commands.queue(SaveSettingsSync::IfChanged);
+                    commands.queue(SaveSettingsSync::Always);
                     info!("Settings saved");
                 }
             }
@@ -48,11 +51,11 @@ impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
         app
             // Спавн UI при входе в состояние меню
-            .add_systems(OnEnter(GameState::MainMenu), spawn_main_menu)
+            .add_systems(OnEnter(GameSessionState::MainMenu), spawn_main_menu)
             // Системы, работающие только когда мы в главном меню
             .add_systems(
                 Update,
-                (main_menu_action).run_if(in_state(GameState::MainMenu)),
+                (main_menu_action).run_if(in_state(GameSessionState::MainMenu)),
             );
     }
 }

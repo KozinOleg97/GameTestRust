@@ -1,5 +1,5 @@
 use crate::camera::{camera_control_system, setup_camera_on_world_generated};
-use crate::game::{GameState, WorldGeneratedEvent};
+use crate::game::{GameSessionState, WorldGeneratedEvent};
 use bevy::ecs::schedule::common_conditions::on_message;
 use bevy::prelude::*;
 
@@ -10,7 +10,7 @@ impl Plugin for CameraPlugin {
         // Управление камерой только в игровом состоянии
         app.add_systems(
             Update,
-            camera_control_system.run_if(in_state(GameState::Playing)),
+            camera_control_system.run_if(in_state(GameSessionState::Active)),
         )
         // Настройка камеры при получении события WorldGeneratedEvent
         .add_systems(

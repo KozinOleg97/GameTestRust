@@ -1,12 +1,11 @@
-use crate::game::GameState;
 use crate::ui::style::*;
 use bevy::prelude::*;
 
-
-/// Создает корневой узел меню на весь экран и автоматически удаляет его при выходе из состояния
-pub fn spawn_menu_root(
+/// Создает корневой узел меню на весь экран и автоматически удаляет его
+/// при выходе из указанного состояния (работает как с обычными States, так и с SubStates)
+pub fn spawn_menu_root<S: States>(
     commands: &mut Commands,
-    state: GameState,
+    state: S,
     build_children: impl FnOnce(&mut ChildSpawnerCommands),
 ) {
     commands

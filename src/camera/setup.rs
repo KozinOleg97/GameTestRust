@@ -1,5 +1,5 @@
 use crate::camera::controller::CameraController;
-use crate::game::GameSettings;
+use crate::game::{GameSettings, GameSessionState};
 use crate::game::WorldGeneratedEvent;
 use crate::hex::{utils::axial_to_pixel, HexCoordinates, HEX_SIZE};
 use bevy::prelude::*;
@@ -28,6 +28,11 @@ pub fn setup_camera_on_world_generated(
 
         commands.spawn((
             Camera3d::default(),
+            Camera {
+                order: 0,
+                clear_color: ClearColorConfig::Default,
+                ..default()
+            },
             Projection::Perspective(PerspectiveProjection {
                 far: 5000.0, // увеличить
                 near: 1.0,
@@ -37,6 +42,7 @@ pub fn setup_camera_on_world_generated(
             Transform::from_xyz(center_x, 2000.0, center_z)
                 .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
             camera_controller,
+            DespawnOnExit(GameSessionState::Active), // Удаляется при выходе в MainMenu
         ));
 
         // Add directional light pointing straight down
@@ -52,6 +58,7 @@ pub fn setup_camera_on_world_generated(
                 ..default()
             },
             light_transform,
+            DespawnOnExit(GameSessionState::Active), // Свет удаляется при выходе в MainMenu
         ));
     }
 }
