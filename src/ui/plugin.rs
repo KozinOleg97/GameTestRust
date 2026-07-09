@@ -1,13 +1,10 @@
 use crate::ui::main_menu::plugin::MainMenuPlugin;
 use crate::ui::pause_menu::plugin::PauseMenuPlugin;
 
-
-
-use bevy::app::App;
-use bevy::prelude::{BackgroundColor, Button, Changed, Interaction, Plugin, Query, Update, With};
 use crate::ui::interactions::InteractionPlugin;
 use crate::ui::performance_overlay::plugin::PerformanceOverlayPlugin;
-use crate::ui::style::*;
+use bevy::app::App;
+use bevy::prelude::Plugin;
 
 pub struct UIPlugin;
 
@@ -19,4 +16,3 @@ impl Plugin for UIPlugin {
             .add_plugins(InteractionPlugin);
     }
 }
-
