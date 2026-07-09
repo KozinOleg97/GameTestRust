@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use bevy::text::{TextColor, TextFont};
 use bevy::ui::{BackgroundColor, Node, PositionType, Val};
 
-
 // --- Импорты для диагностики Bevy ---
 use bevy::diagnostic::{
     DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin,
@@ -13,10 +12,10 @@ use bevy::diagnostic::{
 // Компоненты для UI оверлея
 // -----------------------------------------------------------------------------
 #[derive(Component)]
-struct PerformanceOverlayRoot;
+pub(crate) struct PerformanceOverlayRoot;
 
 #[derive(Component)]
-struct PerformanceText;
+pub(crate) struct PerformanceText;
 
 // -----------------------------------------------------------------------------
 // Вспомогательная функция: получение метрик из DiagnosticsStore
@@ -41,7 +40,7 @@ fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32) {
 // -----------------------------------------------------------------------------
 // Переключение видимости оверлея с сохранением настроек
 // -----------------------------------------------------------------------------
-fn toggle_overlay_visibility(
+pub(crate) fn toggle_overlay_visibility(
     keys: Res<ButtonInput<KeyCode>>,
     mut game_settings: ResMut<GameSettings>,
 ) {
@@ -54,7 +53,7 @@ fn toggle_overlay_visibility(
 // -----------------------------------------------------------------------------
 // Создание / удаление UI оверлея на основе текущих настроек
 // -----------------------------------------------------------------------------
-fn manage_overlay_ui(
+pub(crate) fn manage_overlay_ui(
     mut commands: Commands,
     game_settings: Res<GameSettings>,
     diagnostics: Res<DiagnosticsStore>,
@@ -111,7 +110,7 @@ fn manage_overlay_ui(
 // -----------------------------------------------------------------------------
 // Обновление текста оверлея (если видим)
 // -----------------------------------------------------------------------------
-fn update_overlay_text(
+pub(crate) fn update_overlay_text(
     game_settings: Res<GameSettings>,
     diagnostics: Res<DiagnosticsStore>,
     mut text_query: Query<&mut Text, With<PerformanceText>>,
@@ -135,29 +134,4 @@ fn update_overlay_text(
 // -----------------------------------------------------------------------------
 fn tuple_to_color(rgba: (f32, f32, f32, f32)) -> Color {
     Color::srgba(rgba.0, rgba.1, rgba.2, rgba.3)
-}
-
-
-// -----------------------------------------------------------------------------
-// Плагин
-// -----------------------------------------------------------------------------
-pub struct PerformanceOverlayPlugin;
-
-impl Plugin for PerformanceOverlayPlugin {
-    fn build(&self, app: &mut App) {
-        // Добавляем встроенные диагностические плагины Bevy
-        app.add_plugins(FrameTimeDiagnosticsPlugin::default());
-        app.add_plugins(EntityCountDiagnosticsPlugin::default());
-
-        app.add_systems(
-            Update,
-            (
-                toggle_overlay_visibility,
-                manage_overlay_ui,
-                update_overlay_text,
-            )
-                .chain(),
-        );
-
-    }
 }

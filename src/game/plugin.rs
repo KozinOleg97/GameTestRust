@@ -1,7 +1,5 @@
 use bevy::log;
 
-use super::config::GameConfig;
-
 use crate::camera::CameraPlugin;
 use crate::game::{GameState, WorldGeneratedEvent};
 use crate::generation::WorldGenerationPlugin;
@@ -16,7 +14,6 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
-            .insert_resource(GameConfig::default())
             .add_message::<WorldGeneratedEvent>()
             .add_plugins((
                 CameraPlugin,

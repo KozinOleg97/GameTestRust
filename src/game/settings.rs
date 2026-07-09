@@ -14,6 +14,7 @@ pub struct GameSettings {
     pub window: WindowSettings,
     pub performance_overlay: PerformanceOverlaySettings,
     pub audio: AudioSettings,
+    pub generation: GenerationSettings,
 }
 
 impl Default for GameSettings {
@@ -23,6 +24,30 @@ impl Default for GameSettings {
             window: WindowSettings::default(),
             performance_overlay: PerformanceOverlaySettings::default(),
             audio: AudioSettings::default(),
+            generation: GenerationSettings::default(),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Настройки генерации мира
+// -----------------------------------------------------------------------------
+#[derive(Resource, Reflect)]
+#[reflect(Resource, Default)]
+pub struct GenerationSettings {
+    pub map_width: i32,
+    pub map_height: i32,
+    pub generation_seed: u64,
+    pub chunk_size: i32,
+}
+
+impl Default for GenerationSettings {
+    fn default() -> Self {
+        Self {
+            map_width: 200,
+            map_height: 200,
+            generation_seed: 12345,
+            chunk_size: 20,
         }
     }
 }

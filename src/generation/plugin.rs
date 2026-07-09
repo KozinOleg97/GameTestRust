@@ -1,4 +1,4 @@
-use crate::game::{GameConfig, GameState, WorldGeneratedEvent};
+use crate::game::{GameSettings, GameState, WorldGeneratedEvent};
 use crate::generation::ProceduralWorldGenerator;
 use bevy::prelude::*;
 
@@ -12,13 +12,16 @@ impl Plugin for WorldGenerationPlugin {
 }
 
 fn generate_world(
-    config: Res<GameConfig>,
+    config: Res<GameSettings>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
     mut writer: MessageWriter<WorldGeneratedEvent>,
 ) {
-    let generator =
-        ProceduralWorldGenerator::new(config.map_width, config.map_height, config.generation_seed);
+    let generator = ProceduralWorldGenerator::new(
+        config.generation.map_width,
+        config.generation.map_height,
+        config.generation.generation_seed,
+    );
     let hex_map = generator.generate_world();
     commands.insert_resource(hex_map);
 

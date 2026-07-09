@@ -1,4 +1,3 @@
-pub mod main_menu;
-pub mod buttons;
+mod buttons;
+pub mod plugin;
 
-use buttons::*;
