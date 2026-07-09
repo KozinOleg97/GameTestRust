@@ -8,6 +8,7 @@ bevy = "0.19"
 bevy-settings = "0.19"
 noise = "0.9"
 uuid = { version = "1.23", features = ["v4"] }
+futures-lite = "2.6.1"
 
 
 [profile.dev]
