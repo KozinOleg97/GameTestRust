@@ -1,5 +1,6 @@
 use crate::hex::coordinates::{HexCoordinates, HEX_DIRECTIONS};
 use crate::hex::Hex;
+use bevy::prelude::*;
 
 pub const HEX_SIZE: f32 = 25.0;
 pub const SQRT_3: f32 = 1.73205080757; // sqrt(3)
@@ -51,10 +52,10 @@ pub fn get_all_neighbor_coordinates(coordinates: &HexCoordinates) -> [HexCoordin
 }
 
 /// Converts axial coordinates to pixel coordinates
-pub fn axial_to_pixel(coordinates: &HexCoordinates, hex_size: f32) -> (f32, f32) {
+pub fn axial_to_pixel(coordinates: &HexCoordinates, hex_size: f32) -> Vec2 {
     let x = hex_size * (SQRT_3 * (coordinates.q() as f32 + 0.5 * ((coordinates.r() & 1) as f32)));
     let y = hex_size * 1.5 * coordinates.r() as f32;
-    (x, y)
+    Vec2::new(x, y)
 }
 
 /// Gets all six neighbor coordinates

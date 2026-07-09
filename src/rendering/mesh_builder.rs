@@ -1,35 +1,23 @@
 use crate::hex::map::HexMap;
 use crate::hex::utils::axial_to_pixel;
 use crate::hex::{HexCoordinates, HexType, HEX_SIZE};
-
+use bevy::math::Vec2;
 use bevy::mesh::{Indices, Mesh};
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
 
-pub fn generate_unit_hex_vertices(size: f32) -> Vec<(f32, f32)> {
+const UP_NORMAL: [f32; 3] = [0.0, 1.0, 0.0];
+pub fn generate_unit_hex_vertices(size: f32) -> Vec<Vec2> {
     let rotation = std::f32::consts::PI / 6.0;
     let mut vertices = Vec::with_capacity(7);
     for i in 0..6 {
         let angle = (i as f32) * std::f32::consts::PI / 3.0 + rotation;
         let x = size * angle.cos();
         let z = size * angle.sin();
-        vertices.push((x, z));
+        vertices.push(Vec2::new(x, z));
     }
-    vertices.push((0.0, 0.0));
+    vertices.push(Vec2::ZERO); // Центр гекса
     vertices
-}
-
-pub fn hex_type_to_index(hex_type: HexType) -> u8 {
-    match hex_type {
-        HexType::Empty => 0,
-        HexType::Plains => 1,
-        HexType::Forest => 2,
-        HexType::Mountains => 3,
-        HexType::Desert => 4,
-        HexType::Ocean => 5,
-        HexType::Coast => 6,
-        HexType::Swamp => 7,
-    }
 }
 
 /// Создаёт меш для чанка (старый метод)
@@ -62,12 +50,16 @@ pub fn generate_chunk_mesh(
             let Some(hex) = hex_map.get_hex(q, r) else {
                 continue;
             };
-            let (x, z) = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
-            let type_index = hex_type_to_index(*hex.hex_type()) as f32;
 
-            for (vx, vz) in &unit_vertices {
-                positions.push([x + vx, 0.0, z + vz]);
-                normals.push([0.0, 1.0, 0.0]);
+            let center = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
+            let type_index = *hex.hex_type() as u8 as f32;
+
+            // Используем деструктуризацию ссылки `&corner` для удобства
+            for &corner in &unit_vertices {
+                let pos = center + corner; // Векторное сложение!
+
+                positions.push([pos.x, 0.0, pos.y]);
+                normals.push(UP_NORMAL);
                 uvs.push([(type_index + 0.5) / 8.0, 0.5]); // центр пикселя
                 hex_types.push(type_index);
             }
@@ -103,13 +95,16 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
     for r in 0..hex_map.height() {
         for q in 0..hex_map.width() {
             let hex = hex_map.get_hex(q, r).expect("hex exists");
-            let (x, z) = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
-            let type_index = hex_type_to_index(*hex.hex_type()) as f32;
+
+            let center = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
+            let type_index = *hex.hex_type() as u8 as f32;
 
             // Добавляем 7 вершин гекса
-            for (vx, vz) in &unit_vertices {
-                positions.push([x + vx, 0.0, z + vz]);
-                normals.push([0.0, 1.0, 0.0]);
+            for &corner in &unit_vertices {
+                let pos = center + corner;
+
+                positions.push([pos.x, 0.0, pos.y]);
+                normals.push(UP_NORMAL);
                 uvs.push([(type_index + 0.5) / 8.0, 0.5]); // центр пикселя
             }
 
@@ -145,15 +140,12 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 // pub fn generate_shared_vertices_mesh(hex_map: &HexMap) -> Mesh {
 //     info!("Generating mesh with shared vertices");
 //
-//     let unit_vertices = generate_unit_hex_vertices(HEX_SIZE); // 6 углов + центр? Нам нужны только углы
-//     // unit_vertices[0..6] – углы, unit_vertices[6] – центр (не используем)
+//     let unit_vertices = generate_unit_hex_vertices(HEX_SIZE);
 //     let corners = &unit_vertices[0..6]; // берём только углы
 //
-//     // Словарь для поиска индекса вершины по ключу
-//     // Ключом будет отсортированная тройка координат трёх гексов, сходящихся в углу
 //     let mut vertex_map: HashMap<[i32; 6], u32> = HashMap::new();
 //     let mut positions: Vec<[f32; 3]> = Vec::new();
-//     let mut colors: Vec<[f32; 4]> = Vec::new(); // вершинные цвета (RGBA)
+//     let mut colors: Vec<[f32; 4]> = Vec::new();
 //     let mut indices: Vec<u32> = Vec::new();
 //
 //     // Вспомогательная функция для получения трёх гексов, образующих угол
@@ -163,19 +155,15 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //         // Направления для pointy-top гексов:
 //         // 0: право, 1: вниз-вправо, 2: вниз-влево, 3: влево, 4: вверх-влево, 5: вверх-вправо
 //         let dirs = [
-//             (1, 0),   // 0
-//             (0, 1),   // 1
-//             (-1, 1),  // 2
-//             (-1, 0),  // 3
-//             (0, -1),  // 4
-//             (1, -1),  // 5
+//             (1, 0), (0, 1), (-1, 1),
+//             (-1, 0), (0, -1), (1, -1),
 //         ];
 //         let d1 = dirs[i];
-//         let d2 = dirs[(i + 5) % 6]; // предыдущее направление
+//         let d2 = dirs[(i + 5) % 6];
 //         let hex1 = (q, r);
 //         let hex2 = (q + d1.0, r + d1.1);
 //         let hex3 = (q + d2.0, r + d2.1);
-//         // Сортируем тройку, чтобы ключ был одинаков для всех трёх гексов
+//
 //         let mut triple = [hex1, hex2, hex3];
 //         triple.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
 //         triple
@@ -185,13 +173,13 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //         for q in 0..hex_map.width() {
 //             let hex = hex_map.get_hex(q, r).expect("hex exists");
 //             let hex_type = *hex.hex_type();
-//             let (center_x, center_z) = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
 //
-//             // Для каждого угла гекса
+//             // center теперь Vec2
+//             let center = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
+//
 //             for i in 0..6 {
-//                 let (vx, vz) = corners[i];
-//                 let world_x = center_x + vx;
-//                 let world_z = center_z + vz;
+//                 let corner = corners[i]; // corner теперь Vec2
+//                 let world_pos = center + corner; // Векторное сложение!
 //
 //                 // Получаем три гекса, которые делят этот угол
 //                 let triple = get_three_hexes(q, r, i);
@@ -210,7 +198,7 @@ pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
 //
 //                 // Иначе создаём новую вершину
 //                 let idx = positions.len() as u32;
-//                 positions.push([world_x, 0.0, world_z]);
+//                 positions.push([world_pos.x, 0.0, world_pos.y]);
 //
 //                 // Задаём цвет в зависимости от типа гекса (можно настроить позже)
 //                 let hex_color = match hex_type {

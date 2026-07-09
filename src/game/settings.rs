@@ -127,6 +127,7 @@ pub struct PerformanceOverlaySettings {
     pub background_color: Option<(f32, f32, f32, f32)>, // RGBA
     pub fps_average_frames: usize,
     pub toggle_key: KeyCodeSettings,
+    pub update_interval_secs: f32,
 }
 
 impl Default for PerformanceOverlaySettings {
@@ -139,6 +140,7 @@ impl Default for PerformanceOverlaySettings {
             background_color: Some((0.0, 0.0, 0.0, 0.5)),
             fps_average_frames: 60,
             toggle_key: KeyCodeSettings::F12,
+            update_interval_secs: 0.5,
         }
     }
 }

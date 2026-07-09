@@ -1,30 +1,16 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
 pub enum HexType {
-    Empty,
-    Plains,
-    Forest,
-    Mountains,
-    Desert,
-    Ocean,
-    Coast,
-    Swamp,
-}
-
-impl Hash for HexType {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            HexType::Empty => 0.hash(state),
-            HexType::Forest => 1.hash(state),
-            HexType::Mountains => 2.hash(state),
-            HexType::Desert => 3.hash(state),
-            HexType::Ocean => 4.hash(state),
-            HexType::Coast => 5.hash(state),
-            HexType::Swamp => 6.hash(state),
-            HexType::Plains => 7.hash(state),
-        }
-    }
+    Empty = 0,
+    Plains = 1,
+    Forest = 2,
+    Mountains = 3,
+    Desert = 4,
+    Ocean = 5,
+    Coast = 6,
+    Swamp = 7,
 }
 
 impl HexType {

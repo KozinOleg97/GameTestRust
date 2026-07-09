@@ -7,12 +7,13 @@ use bevy::prelude::*;
 pub fn setup_camera_on_world_generated(
     mut commands: Commands,
     mut events: MessageReader<WorldGeneratedEvent>,
-    settings: Res<GameSettings>, // добавить
+    settings: Res<GameSettings>,
 ) {
     for _ in events.read() {
         let center_q = settings.generation.map_width / 2;
         let center_r = settings.generation.map_height / 2;
-        let (center_x, center_z) = axial_to_pixel(&HexCoordinates::new(center_q, center_r), HEX_SIZE);
+
+        let center_pixel = axial_to_pixel(&HexCoordinates::new(center_q, center_r), HEX_SIZE);
 
         // Создаём контроллер с параметрами из настроек
         let camera_controller = CameraController {
@@ -25,6 +26,10 @@ pub fn setup_camera_on_world_generated(
             min_pitch: settings.camera.min_pitch,
             max_pitch: settings.camera.max_pitch,
         };
+
+        // Метод extend(2000.0) берёт 2D-вектор (X, Z) и добавляет третью координату (Y = 2000.0)
+        let camera_transform = Transform::from_translation(center_pixel.extend(2000.0))
+            .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
 
         commands.spawn((
             Camera3d::default(),
@@ -39,18 +44,17 @@ pub fn setup_camera_on_world_generated(
                 fov: 90.0f32.to_radians(),
                 ..default()
             }),
-            Transform::from_xyz(center_x, 2000.0, center_z)
-                .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+            camera_transform,
             camera_controller,
-            DespawnOnExit(GameSessionState::Active), // Удаляется при выходе в MainMenu
+            DespawnOnExit(GameSessionState::Active), // Удаляется при выходе из состояния игры
         ));
 
         // Add directional light pointing straight down
-        let light_transform =
-            Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
-        let light_forward = light_transform.forward();
+        let light_transform = Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));
+
         println!("Directional light transform: {:?}", light_transform);
-        println!("Light forward direction: {:?}", light_forward);
+        println!("Light forward direction: {:?}", light_transform.forward());
+
         commands.spawn((
             DirectionalLight {
                 illuminance: 1000.0,
@@ -58,7 +62,7 @@ pub fn setup_camera_on_world_generated(
                 ..default()
             },
             light_transform,
-            DespawnOnExit(GameSessionState::Active), // Свет удаляется при выходе в MainMenu
+            DespawnOnExit(GameSessionState::Active), // Свет удаляется
         ));
     }
 }

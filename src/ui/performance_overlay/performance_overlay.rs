@@ -1,11 +1,12 @@
 use crate::game::GameSettings;
 use bevy::prelude::*;
-use bevy::text::{TextColor, TextFont};
+use bevy::text::{TextColor, TextFont, TextSpan};
 use bevy::ui::{BackgroundColor, Node, PositionType, Val};
 
 // --- Импорты для диагностики Bevy ---
 use bevy::diagnostic::{
     DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin,
+    SystemInformationDiagnosticsPlugin,
 };
 
 // -----------------------------------------------------------------------------
@@ -20,7 +21,7 @@ pub(crate) struct PerformanceText;
 // -----------------------------------------------------------------------------
 // Вспомогательная функция: получение метрик из DiagnosticsStore
 // -----------------------------------------------------------------------------
-fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32) {
+fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32, f64) {
     let fps = diagnostics
         .get(&FrameTimeDiagnosticsPlugin::FPS)
         .and_then(|d| d.smoothed())
@@ -34,7 +35,22 @@ fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32) {
         .get(&EntityCountDiagnosticsPlugin::ENTITY_COUNT)
         .and_then(|d| d.value())
         .unwrap_or(0f64);
-    (fps as f32, frame_time_ms as f32, entities as u32)
+
+    // Получение использования памяти в ГИБИБАЙТАХ (так отдаёт Bevy)
+    let process_mem_gib = diagnostics
+        .get(&SystemInformationDiagnosticsPlugin::PROCESS_MEM_USAGE)
+        .and_then(|d| d.value())
+        .unwrap_or(0.0);
+
+    // Переводим в мегабайты (1 GiB = 1024 MiB)
+    let process_mem_mb = process_mem_gib * 1024.0;
+
+    (
+        fps as f32,
+        frame_time_ms as f32,
+        entities as u32,
+        process_mem_mb,
+    )
 }
 
 // -----------------------------------------------------------------------------
@@ -66,11 +82,16 @@ pub(crate) fn manage_overlay_ui(
     if config.visible && !is_spawned {
         let (x, y) = config.position;
         let font = asset_server.load("fonts/FiraSans-Bold.ttf").into();
-
-        let (fps, frame_time_ms, entities) = get_performance_metrics(&diagnostics);
+        let (fps, frame_time_ms, entities, mem_mb) = get_performance_metrics(&diagnostics);
 
         let mut root_cmd = commands.spawn((
             PerformanceOverlayRoot,
+            Text::new(""),
+            TextFont {
+                font,
+                font_size: FontSize::Px(config.font_size),
+                ..default()
+            },
             Node {
                 position_type: PositionType::Absolute,
                 left: Val::Px(x),
@@ -85,17 +106,12 @@ pub(crate) fn manage_overlay_ui(
 
         root_cmd.with_children(|parent| {
             parent.spawn((
-                PerformanceText,
-                Text::new(format!(
-                    "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}",
-                    fps, frame_time_ms, entities
+                TextSpan::new(format!(
+                    "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}\nRAM: {:.2} MB",
+                    fps, frame_time_ms, entities, mem_mb
                 )),
-                TextFont {
-                    font,
-                    font_size: FontSize::Px(config.font_size),
-                    ..default()
-                },
                 TextColor(tuple_to_color(config.text_color)),
+                PerformanceText,
             ));
         });
         info!("Performance overlay spawned");
@@ -111,21 +127,36 @@ pub(crate) fn manage_overlay_ui(
 // Обновление текста оверлея (если видим)
 // -----------------------------------------------------------------------------
 pub(crate) fn update_overlay_text(
+    time: Res<Time>,
+    mut elapsed: Local<f32>,
     game_settings: Res<GameSettings>,
     diagnostics: Res<DiagnosticsStore>,
-    mut text_query: Query<&mut Text, With<PerformanceText>>,
+    mut text_query: Query<&mut TextSpan, With<PerformanceText>>,
 ) {
     if !game_settings.performance_overlay.visible {
         return;
     }
 
-    let (fps, frame_time_ms, entities) = get_performance_metrics(&diagnostics);
+    // Получаем интервал из настроек (защита от значений <= 0)
+    let interval = game_settings
+        .performance_overlay
+        .update_interval_secs
+        .max(0.01);
 
-    for mut text in text_query.iter_mut() {
-        text.0 = format!(
-            "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}",
-            fps, frame_time_ms, entities
-        );
+    // Накапливаем время, прошедшее с прошлого кадра
+    *elapsed += time.delta_secs();
+
+    // Если прошло достаточно времени, обновляем текст
+    if *elapsed >= interval {
+        *elapsed = 0.0; // Сбрасываем таймер
+
+        let (fps, frame_time_ms, entities, mem_mb) = get_performance_metrics(&diagnostics);
+        for mut span in &mut text_query {
+            **span = format!(
+                "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}\nRAM: {:.2} MB",
+                fps, frame_time_ms, entities, mem_mb
+            );
+        }
     }
 }
 
