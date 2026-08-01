@@ -1,263 +1,294 @@
-use crate::hex::map::HexMap;
-use crate::hex::utils::axial_to_pixel;
-use crate::hex::{HexCoordinates, HexType, HEX_SIZE};
-use bevy::math::Vec2;
-use bevy::mesh::{Indices, Mesh};
+use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
-use bevy::render::render_resource::PrimitiveTopology;
+use bevy::render::mesh::{Indices, PrimitiveTopology};
 
-const UP_NORMAL: [f32; 3] = [0.0, 1.0, 0.0];
-pub fn generate_unit_hex_vertices(size: f32) -> Vec<Vec2> {
-    let rotation = std::f32::consts::PI / 6.0;
-    let mut vertices = Vec::with_capacity(7);
-    for i in 0..6 {
-        let angle = (i as f32) * std::f32::consts::PI / 3.0 + rotation;
-        let x = size * angle.cos();
-        let z = size * angle.sin();
-        vertices.push(Vec2::new(x, z));
-    }
-    vertices.push(Vec2::ZERO); // Центр гекса
-    vertices
+use crate::game::settings::RenderingSettings;
+use crate::hex::{ChunkData, ChunkLayout, HexChunk, MapBounds, HEX_DIRECTIONS};
+
+use super::hex_math::{hex_corners, SHARED_CORNERS};
+
+enum NeighborHeight {
+    Loaded(i8),
+    Unloaded,
+    OutOfBounds,
 }
 
-/// Создаёт меш для чанка (старый метод)
-#[allow(dead_code)]
-pub fn generate_chunk_mesh(
-    hex_map: &HexMap,
-    q_min: i32,
-    q_max: i32,
-    r_min: i32,
-    r_max: i32,
-) -> (
-    Vec<[f32; 3]>,
-    Vec<[f32; 3]>,
-    Vec<[f32; 2]>,
-    Vec<u32>,
-    Vec<f32>,
-) {
-    info!("Generating chunk mesh");
+pub fn build_chunk_mesh(
+    chunk: &HexChunk,
+    data: &ChunkData,
+    neighbors: [Option<Vec<i8>>; 6],
+    layout: &ChunkLayout,
+    bounds: MapBounds,
+    render: &RenderingSettings,
+) -> Option<Mesh> {
+    if data.size != layout.size {
+        warn!(
+            "ChunkData size {} does not match ChunkLayout size {}",
+            data.size, layout.size
+        );
+        return None;
+    }
 
-    let unit_vertices = generate_unit_hex_vertices(HEX_SIZE);
-    let mut positions = Vec::new();
-    let mut normals = Vec::new();
-    let mut uvs = Vec::new();
-    let mut indices = Vec::new();
-    let mut hex_types = Vec::new();
-    let mut vertex_offset = 0;
+    let size = data.size;
+    let corners = hex_corners(render.hex_size);
 
-    for r in r_min..=r_max {
-        for q in q_min..=q_max {
-            let Some(hex) = hex_map.get_hex(q, r) else {
+    let mut positions: Vec<[f32; 3]> = Vec::with_capacity(layout.area * 6);
+    let mut colors: Vec<[f32; 4]> = Vec::with_capacity(layout.area * 6);
+    let mut normals: Vec<[f32; 3]> = Vec::with_capacity(layout.area * 6);
+    let mut indices: Vec<u32> = Vec::with_capacity(layout.area * 12);
+
+    let origin_q = layout.origin_q(chunk.chunk_x);
+    let origin_r = layout.origin_r(chunk.chunk_y);
+
+    let skirt_i8 = (render.skirt_height / render.elevation_step) as i8;
+
+    // ------------------------------------------------------------
+    // Top faces
+    // ------------------------------------------------------------
+
+    for r in 0..size {
+        for q in 0..size {
+            let global_q = origin_q + q as i32;
+            let global_r = origin_r + r as i32;
+
+            if !bounds.contains_hex(global_q, global_r) {
                 continue;
-            };
-
-            let center = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
-            let type_index = *hex.hex_type() as u8 as f32;
-
-            // Используем деструктуризацию ссылки `&corner` для удобства
-            for &corner in &unit_vertices {
-                let pos = center + corner; // Векторное сложение!
-
-                positions.push([pos.x, 0.0, pos.y]);
-                normals.push(UP_NORMAL);
-                uvs.push([(type_index + 0.5) / 8.0, 0.5]); // центр пикселя
-                hex_types.push(type_index);
             }
 
-            for i in 0..6 {
-                let next = (i + 1) % 6;
-                indices.extend_from_slice(&[
-                    vertex_offset + i,
-                    vertex_offset + next,
-                    vertex_offset + 6,
-                ]);
+            let idx = data.index(q, r);
+            let biome = data.biomes[idx];
+
+            if !biome.is_renderable() {
+                continue;
             }
-            vertex_offset += 7;
+
+            let elev = data.elevations[idx] as f32 * render.elevation_step;
+
+            let center = hex_center_local(layout, render.hex_size, q, r);
+            let center_raised = Vec3::new(center.x, elev, center.z);
+
+            let base_idx = positions.len() as u32;
+            let color = biome.color();
+
+            for c in &corners {
+                positions.push((center_raised + *c).into());
+                colors.push(color);
+                normals.push([0.0, 1.0, 0.0]);
+            }
+
+            indices.extend_from_slice(&[
+                base_idx,
+                base_idx + 2,
+                base_idx + 1,
+                base_idx,
+                base_idx + 3,
+                base_idx + 2,
+                base_idx,
+                base_idx + 4,
+                base_idx + 3,
+                base_idx,
+                base_idx + 5,
+                base_idx + 4,
+            ]);
         }
     }
-    return (positions, normals, uvs, indices, hex_types);
-}
 
-/// Создаёт один меш для всей карты (новый метод)
-#[allow(dead_code)]
-pub fn generate_full_mesh(hex_map: &HexMap) -> Mesh {
-    info!("Generating full mesh");
-    let unit_vertices = generate_unit_hex_vertices(HEX_SIZE);
-    let total_hexes = hex_map.size();
+    // ------------------------------------------------------------
+    // Walls
+    // ------------------------------------------------------------
 
-    let mut positions = Vec::with_capacity(total_hexes * 7);
-    let mut normals = Vec::with_capacity(total_hexes * 7);
-    let mut uvs = Vec::with_capacity(total_hexes * 7);
-    let mut indices = Vec::with_capacity(total_hexes * 6 * 3); // 6 треугольников на гекс
+    if render.enable_walls {
+        for r in 0..size {
+            for q in 0..size {
+                let global_q = origin_q + q as i32;
+                let global_r = origin_r + r as i32;
 
-    let mut vertex_offset = 0;
+                if !bounds.contains_hex(global_q, global_r) {
+                    continue;
+                }
 
-    for r in 0..hex_map.height() {
-        for q in 0..hex_map.width() {
-            let hex = hex_map.get_hex(q, r).expect("hex exists");
+                let idx = data.index(q, r);
+                let biome = data.biomes[idx];
 
-            let center = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
-            let type_index = *hex.hex_type() as u8 as f32;
+                if !biome.is_renderable() {
+                    continue;
+                }
 
-            // Добавляем 7 вершин гекса
-            for &corner in &unit_vertices {
-                let pos = center + corner;
+                let elev_curr_i8 = data.elevations[idx];
+                let elev_curr_f32 = elev_curr_i8 as f32 * render.elevation_step;
+                let color = biome.color();
 
-                positions.push([pos.x, 0.0, pos.y]);
-                normals.push(UP_NORMAL);
-                uvs.push([(type_index + 0.5) / 8.0, 0.5]); // центр пикселя
+                let center = hex_center_local(layout, render.hex_size, q, r);
+
+                for dir_idx in 0..6 {
+                    let dir = &HEX_DIRECTIONS[dir_idx];
+
+                    let local_nq = q as i32 + dir.q();
+                    let local_nr = r as i32 + dir.r();
+
+                    let global_nq = origin_q + local_nq;
+                    let global_nr = origin_r + local_nr;
+
+                    let neighbor_height = get_neighbor_height(
+                        data, &neighbors, layout, bounds, local_nq, local_nr, global_nq, global_nr,
+                    );
+
+                    let (should_build_wall, elev_n_f32) = match neighbor_height {
+                        NeighborHeight::Loaded(elev_n_i8) => (
+                            elev_curr_i8 > elev_n_i8,
+                            elev_n_i8 as f32 * render.elevation_step,
+                        ),
+
+                        NeighborHeight::Unloaded => (false, 0.0),
+
+                        NeighborHeight::OutOfBounds => {
+                            (elev_curr_i8 > skirt_i8, render.skirt_height)
+                        }
+                    };
+
+                    if should_build_wall {
+                        add_wall(
+                            &mut positions,
+                            &mut colors,
+                            &mut normals,
+                            &mut indices,
+                            center,
+                            elev_curr_f32,
+                            elev_n_f32,
+                            color,
+                            &corners,
+                            dir_idx,
+                        );
+                    }
+                }
             }
-
-            // Индексы для 6 треугольников (центр + две соседние вершины)
-            for i in 0..6 {
-                let next = (i + 1) % 6;
-                indices.extend_from_slice(&[
-                    vertex_offset + i,
-                    vertex_offset + next,
-                    vertex_offset + 6,
-                ]);
-            }
-
-            vertex_offset += 7;
         }
+    }
+
+    if positions.is_empty() {
+        return None;
     }
 
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
-        bevy::asset::RenderAssetUsages::default(),
+        RenderAssetUsages::default(),
     );
+
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     mesh.insert_indices(Indices::U32(indices));
 
-    mesh
+    Some(mesh)
 }
 
-// /// Генерирует меш с общими вершинами для всей карты.
-// /// Каждый гекс представляется 6 углами, вершины на стыках используются повторно.
-// /// Для хранения типа гекса используются вершинные цвета (R,G,B,A).
-// pub fn generate_shared_vertices_mesh(hex_map: &HexMap) -> Mesh {
-//     info!("Generating mesh with shared vertices");
-//
-//     let unit_vertices = generate_unit_hex_vertices(HEX_SIZE);
-//     let corners = &unit_vertices[0..6]; // берём только углы
-//
-//     let mut vertex_map: HashMap<[i32; 6], u32> = HashMap::new();
-//     let mut positions: Vec<[f32; 3]> = Vec::new();
-//     let mut colors: Vec<[f32; 4]> = Vec::new();
-//     let mut indices: Vec<u32> = Vec::new();
-//
-//     // Вспомогательная функция для получения трёх гексов, образующих угол
-//     // Для гекса (q,r) и направления i (0..5) возвращает три координаты (q,r) гексов,
-//     // которые встречаются в этом углу.
-//     fn get_three_hexes(q: i32, r: i32, i: usize) -> [(i32, i32); 3] {
-//         // Направления для pointy-top гексов:
-//         // 0: право, 1: вниз-вправо, 2: вниз-влево, 3: влево, 4: вверх-влево, 5: вверх-вправо
-//         let dirs = [
-//             (1, 0), (0, 1), (-1, 1),
-//             (-1, 0), (0, -1), (1, -1),
-//         ];
-//         let d1 = dirs[i];
-//         let d2 = dirs[(i + 5) % 6];
-//         let hex1 = (q, r);
-//         let hex2 = (q + d1.0, r + d1.1);
-//         let hex3 = (q + d2.0, r + d2.1);
-//
-//         let mut triple = [hex1, hex2, hex3];
-//         triple.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
-//         triple
-//     }
-//
-//     for r in 0..hex_map.height() {
-//         for q in 0..hex_map.width() {
-//             let hex = hex_map.get_hex(q, r).expect("hex exists");
-//             let hex_type = *hex.hex_type();
-//
-//             // center теперь Vec2
-//             let center = axial_to_pixel(&HexCoordinates::new(q, r), HEX_SIZE);
-//
-//             for i in 0..6 {
-//                 let corner = corners[i]; // corner теперь Vec2
-//                 let world_pos = center + corner; // Векторное сложение!
-//
-//                 // Получаем три гекса, которые делят этот угол
-//                 let triple = get_three_hexes(q, r, i);
-//                 // Ключ – плоский массив из шести целых чисел
-//                 let key = [
-//                     triple[0].0, triple[0].1,
-//                     triple[1].0, triple[1].1,
-//                     triple[2].0, triple[2].1,
-//                 ];
-//
-//                 // Если вершина уже существует, берём её индекс
-//                 if let Some(&idx) = vertex_map.get(&key) {
-//                     indices.push(idx);
-//                     continue;
-//                 }
-//
-//                 // Иначе создаём новую вершину
-//                 let idx = positions.len() as u32;
-//                 positions.push([world_pos.x, 0.0, world_pos.y]);
-//
-//                 // Задаём цвет в зависимости от типа гекса (можно настроить позже)
-//                 let hex_color = match hex_type {
-//                     HexType::Empty    => [0.0, 0.0, 0.0, 1.0],
-//                     HexType::Plains   => [0.0, 1.0, 0.0, 1.0],
-//                     HexType::Forest   => [0.0, 0.5, 0.0, 1.0],
-//                     HexType::Mountains=> [0.5, 0.5, 0.5, 1.0],
-//                     HexType::Desert   => [1.0, 1.0, 0.0, 1.0],
-//                     HexType::Ocean    => [0.0, 0.0, 1.0, 1.0],
-//                     HexType::Coast    => [0.0, 1.0, 1.0, 1.0],
-//                     HexType::Swamp    => [0.5, 0.0, 0.5, 1.0],
-//                 };
-//                 colors.push(hex_color);
-//
-//                 vertex_map.insert(key, idx);
-//                 indices.push(idx);
-//             }
-//         }
-//     }
-//
-//     // Теперь нужно построить индексы треугольников для каждого гекса.
-//     // Мы имеем список индексов вершин в порядке обхода гексов, но вершины
-//     // были добавлены в произвольном порядке. Чтобы восстановить, какие шесть
-//     // вершин принадлежат конкретному гексу, можно либо сохранять их при генерации,
-//     // либо перебрать все гексы и собрать индексы заново, используя vertex_map.
-//     // Для простоты пересоберём индексы треугольников, опираясь на те же тройки.
-//
-//     let mut triangle_indices = Vec::new();
-//     for r in 0..hex_map.height() {
-//         for q in 0..hex_map.width() {
-//             // Для каждого гекса нужно найти индексы его 6 углов
-//             let mut hex_vertex_indices = [0u32; 6];
-//             for i in 0..6 {
-//                 let triple = get_three_hexes(q, r, i);
-//                 let key = [
-//                     triple[0].0, triple[0].1,
-//                     triple[1].0, triple[1].1,
-//                     triple[2].0, triple[2].1,
-//                 ];
-//                 hex_vertex_indices[i] = *vertex_map.get(&key).expect("vertex should exist");
-//             }
-//             // Разбиваем на 4 треугольника (0-1-2, 0-2-3, 0-3-4, 0-4-5)
-//             for i in 1..5 {
-//                 triangle_indices.extend_from_slice(&[
-//                     hex_vertex_indices[0],
-//                     hex_vertex_indices[i],
-//                     hex_vertex_indices[i+1],
-//                 ]);
-//             }
-//         }
-//     }
-//
-//     let mut mesh = Mesh::new(
-//         PrimitiveTopology::TriangleList,
-//         bevy::asset::RenderAssetUsages::default(),
-//     );
-//     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-//     mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-//     mesh.insert_indices(Indices::U32(triangle_indices));
-//
-//     mesh
-// }
+fn hex_center_local(layout: &ChunkLayout, hex_size: f32, local_q: usize, local_r: usize) -> Vec3 {
+    let q = local_q as f32;
+    let r = local_r as f32;
+
+    let x = hex_size * super::hex_math::SQRT_3 * (q + r / 2.0);
+    let z = hex_size * 1.5 * r;
+
+    Vec3::new(x, 0.0, z)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn get_neighbor_height(
+    current: &ChunkData,
+    neighbors: &[Option<Vec<i8>>; 6],
+    layout: &ChunkLayout,
+    bounds: MapBounds,
+    local_nq: i32,
+    local_nr: i32,
+    global_nq: i32,
+    global_nr: i32,
+) -> NeighborHeight {
+    if !bounds.contains_hex(global_nq, global_nr) {
+        return NeighborHeight::OutOfBounds;
+    }
+
+    if layout.contains_local(local_nq, local_nr) {
+        let idx = layout.index(local_nq as usize, local_nr as usize);
+        return NeighborHeight::Loaded(current.elevations[idx]);
+    }
+
+    let chunk_offset_q = local_nq >> layout.shift;
+    let chunk_offset_r = local_nr >> layout.shift;
+
+    let neighbor_idx = HEX_DIRECTIONS
+        .iter()
+        .position(|d| d.q() == chunk_offset_q && d.r() == chunk_offset_r);
+
+    if let Some(idx) = neighbor_idx {
+        if let Some(neighbor_data) = &neighbors[idx] {
+            let local_q = (local_nq & layout.mask) as usize;
+            let local_r = (local_nr & layout.mask) as usize;
+
+            let neighbor_index = layout.index(local_q, local_r);
+
+            if neighbor_index < neighbor_data.len() {
+                return NeighborHeight::Loaded(neighbor_data[neighbor_index]);
+            }
+        }
+    }
+
+    NeighborHeight::Unloaded
+}
+
+#[allow(clippy::too_many_arguments)]
+fn add_wall(
+    pos: &mut Vec<[f32; 3]>,
+    col: &mut Vec<[f32; 4]>,
+    norm: &mut Vec<[f32; 3]>,
+    idx: &mut Vec<u32>,
+    center: Vec3,
+    elev_curr: f32,
+    elev_n: f32,
+    color: [f32; 4],
+    corners: &[Vec3; 6],
+    dir: usize,
+) {
+    let [c1_idx, c2_idx] = SHARED_CORNERS[dir];
+
+    let c1 = corners[c1_idx];
+    let c2 = corners[c2_idx];
+
+    let base = pos.len() as u32;
+
+    let dark_color = [color[0] * 0.6, color[1] * 0.6, color[2] * 0.6, 1.0];
+
+    let outward = ((c1 + c2) / 2.0).normalize();
+
+    let v0 = center + c1 + Vec3::Y * elev_curr;
+    let v1 = center + c2 + Vec3::Y * elev_curr;
+    let v2 = center + c2 + Vec3::Y * elev_n;
+    let v3 = center + c1 + Vec3::Y * elev_n;
+
+    pos.push(v0.into());
+    pos.push(v1.into());
+    pos.push(v2.into());
+    pos.push(v3.into());
+
+    let edge1 = v1 - v0;
+    let edge2 = v2 - v0;
+    let computed_normal = edge1.cross(edge2).normalize();
+
+    let (final_normal, indices) = if computed_normal.dot(outward) >= 0.0 {
+        (
+            computed_normal,
+            [base, base + 1, base + 2, base, base + 2, base + 3],
+        )
+    } else {
+        (
+            -computed_normal,
+            [base, base + 2, base + 1, base, base + 3, base + 2],
+        )
+    };
+
+    for _ in 0..4 {
+        col.push(dark_color);
+        norm.push(final_normal.into());
+    }
+
+    idx.extend_from_slice(&indices);
+}

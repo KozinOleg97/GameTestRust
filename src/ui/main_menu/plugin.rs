@@ -8,7 +8,7 @@ use std::thread::spawn;
 
 fn spawn_main_menu(mut commands: Commands) {
     info!("Spawned main menu");
-    commands.spawn((Camera2d, DespawnOnExit(GameSessionState::MainMenu)));
+    commands.spawn((Camera2d, Camera{order: 10, ..default()}, DespawnOnExit(GameSessionState::MainMenu)));
 
     spawn_menu_root(&mut commands, GameSessionState::MainMenu, |parent| {
         spawn_title(parent, "Hex Game");

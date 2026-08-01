@@ -1,11 +1,9 @@
+pub mod chunk;
+pub mod chunk_map;
 pub mod coordinates;
-pub mod hex;
 pub mod hex_type;
-pub mod map;
-pub mod utils;
 
-pub use coordinates::HexCoordinates;
-pub use hex::Hex;
-pub use hex_type::HexType;
-pub use map::HexMap;
-pub use utils::*;
+pub use chunk::*;
+pub use chunk_map::*;
+pub use coordinates::*;
+pub use hex_type::*;

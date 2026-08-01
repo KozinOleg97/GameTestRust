@@ -5,5 +5,5 @@ mod state;
 
 pub use events::*;
 pub use plugin::GamePlugin;
-pub use settings::GameSettings;
+pub use settings::{validate_game_settings, GameSettings};
 pub use state::{GameSessionState, PlayState};

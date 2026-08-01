@@ -3,6 +3,8 @@ use bevy_settings::{
     ReflectSettingsGroup, SaveSettingsDeferred, SaveSettingsSync, SettingsGroup, SettingsPlugin,
 };
 
+use crate::hex::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
+
 // -----------------------------------------------------------------------------
 // Главный ресурс настроек
 // -----------------------------------------------------------------------------
@@ -14,7 +16,10 @@ pub struct GameSettings {
     pub window: WindowSettings,
     pub performance_overlay: PerformanceOverlaySettings,
     pub audio: AudioSettings,
+
     pub generation: GenerationSettings,
+    pub rendering: RenderingSettings,
+    pub debug: DebugSettings,
 }
 
 impl Default for GameSettings {
@@ -24,38 +29,180 @@ impl Default for GameSettings {
             window: WindowSettings::default(),
             performance_overlay: PerformanceOverlaySettings::default(),
             audio: AudioSettings::default(),
+
             generation: GenerationSettings::default(),
+            rendering: RenderingSettings::default(),
+            debug: DebugSettings::default(),
         }
     }
+}
+
+impl GameSettings {
+    pub fn validate_all(&mut self) {
+        self.generation.validate();
+        self.rendering.validate();
+    }
+}
+
+pub fn validate_game_settings(mut config: ResMut<GameSettings>) {
+    config.validate_all();
 }
 
 // -----------------------------------------------------------------------------
 // Настройки генерации мира
 // -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct GenerationSettings {
+    /// Ширина карты в гексах.
     pub map_width: i32,
+
+    /// Высота карты в гексах.
     pub map_height: i32,
+
+    /// Seed генерации.
     pub generation_seed: u64,
+
+    /// Размер чанка в гексах.
+    /// Должен быть степенью двойки: 8, 16, 32, 64, 128.
     pub chunk_size: i32,
 }
 
 impl Default for GenerationSettings {
     fn default() -> Self {
         Self {
-            map_width: 200,
-            map_height: 200,
+            map_width: 1000,
+            map_height: 1000,
             generation_seed: 12345,
-            chunk_size: 20,
+            chunk_size: DEFAULT_CHUNK_SIZE as i32,
+        }
+    }
+}
+
+impl GenerationSettings {
+    pub fn validate(&mut self) {
+        if self.map_width <= 0 {
+            warn!(
+                "GenerationSettings.map_width was {}, forcing to 1",
+                self.map_width
+            );
+            self.map_width = 1;
+        }
+
+        if self.map_height <= 0 {
+            warn!(
+                "GenerationSettings.map_height was {}, forcing to 1",
+                self.map_height
+            );
+            self.map_height = 1;
+        }
+
+        if self.chunk_size <= 0 || !is_valid_chunk_size_i32(self.chunk_size) {
+            warn!(
+                "GenerationSettings.chunk_size was {} (allowed: power of two, {}..{}), forcing to {}",
+                self.chunk_size, MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, DEFAULT_CHUNK_SIZE
+            );
+
+            self.chunk_size = DEFAULT_CHUNK_SIZE as i32;
+        }
+    }
+
+    pub fn chunk_size_usize(&self) -> usize {
+        self.chunk_size as usize
+    }
+}
+
+fn is_valid_chunk_size_i32(size: i32) -> bool {
+    size >= MIN_CHUNK_SIZE as i32
+        && size <= MAX_CHUNK_SIZE as i32
+        && size > 0
+        && (size & (size - 1)) == 0
+}
+
+// -----------------------------------------------------------------------------
+// Настройки рендера
+// -----------------------------------------------------------------------------
+
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource, Default)]
+pub struct RenderingSettings {
+    pub hex_size: f32,
+    pub elevation_step: f32,
+    pub skirt_height: f32,
+    pub enable_walls: bool,
+    pub mesh_build_batch_size: usize,
+}
+
+impl Default for RenderingSettings {
+    fn default() -> Self {
+        Self {
+            hex_size: 1.0,
+            elevation_step: 0.9,
+            skirt_height: -10.0,
+            enable_walls: true,
+            mesh_build_batch_size: 32,
+        }
+    }
+}
+
+impl RenderingSettings {
+    pub fn validate(&mut self) {
+        if !self.hex_size.is_finite() || self.hex_size <= 0.0 {
+            warn!(
+                "RenderingSettings.hex_size was {}, forcing to 1.0",
+                self.hex_size
+            );
+            self.hex_size = 1.0;
+        }
+
+        if !self.elevation_step.is_finite() || self.elevation_step <= 0.0 {
+            warn!(
+                "RenderingSettings.elevation_step was {}, forcing to 0.9",
+                self.elevation_step
+            );
+            self.elevation_step = 0.9;
+        }
+
+        if !self.skirt_height.is_finite() {
+            warn!(
+                "RenderingSettings.skirt_height was {}, forcing to -10.0",
+                self.skirt_height
+            );
+            self.skirt_height = -10.0;
+        }
+
+        self.mesh_build_batch_size = self.mesh_build_batch_size.clamp(1, 256);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Debug-настройки
+// -----------------------------------------------------------------------------
+
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource, Default)]
+pub struct DebugSettings {
+    pub chunk_bounds: bool,
+    pub log_generation: bool,
+    pub log_mesh_queue: bool,
+}
+
+impl Default for DebugSettings {
+    fn default() -> Self {
+        Self {
+            chunk_bounds: false,
+            log_generation: true,
+            log_mesh_queue: false,
         }
     }
 }
 
 // -----------------------------------------------------------------------------
-// Настройки камеры (соответствуют полям CameraController)
+// Камера
 // -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct CameraSettings {
     pub pan_speed: f32,
@@ -83,14 +230,11 @@ impl Default for CameraSettings {
     }
 }
 
-// impl ValidatedSetting for CameraSettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// Окно
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Настройки окна
-// -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct WindowSettings {
     pub width: f32,
@@ -110,21 +254,18 @@ impl Default for WindowSettings {
     }
 }
 
-// impl ValidatedSetting for WindowSettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// FPS overlay
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Настройки FPS-оверлея (аналог PerformanceOverlayConfig)
-// -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct PerformanceOverlaySettings {
     pub visible: bool,
     pub position: (f32, f32),
     pub font_size: f32,
-    pub text_color: (f32, f32, f32, f32),               // RGBA
-    pub background_color: Option<(f32, f32, f32, f32)>, // RGBA
+    pub text_color: (f32, f32, f32, f32),
+    pub background_color: Option<(f32, f32, f32, f32)>,
     pub fps_average_frames: usize,
     pub toggle_key: KeyCodeSettings,
     pub update_interval_secs: f32,
@@ -145,14 +286,11 @@ impl Default for PerformanceOverlaySettings {
     }
 }
 
-// impl ValidatedSetting for PerformanceOverlaySettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// Audio
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Настройки звука (задел)
-// -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct AudioSettings {
     pub master_volume: f32,
@@ -170,13 +308,10 @@ impl Default for AudioSettings {
     }
 }
 
-// impl ValidatedSetting for AudioSettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// Key codes
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Сериализуемые коды клавиш
-// -----------------------------------------------------------------------------
 #[derive(Resource, Reflect, Copy, Clone)]
 #[reflect(Resource)]
 pub enum KeyCodeSettings {

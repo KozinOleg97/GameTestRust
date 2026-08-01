@@ -1,22 +1,10 @@
-// mod batched_hex_renderer;
-// mod mesh_builder;
-// mod plugin;
-// mod materials;
-// mod chunk_manager;
-//
-// pub use plugin::HexRenderPlugin;
+pub mod debug;
+pub mod hex_math;
+pub mod mesh_builder;
+pub mod plugin;
+pub mod systems;
 
-mod chunk_renderer;
-mod full_mesh_renderer;
-mod materials;
-mod mesh_builder;
-mod plugin;
-
-pub use full_mesh_renderer::FullMeshRenderingPlugin;
-pub use plugin::HexRenderingPlugin;
-
-/// Режимы рендеринга шестиугольников
-pub enum RenderingMode {
-    Chunked,
-    FullMesh,
-}
+pub use debug::*;
+pub use hex_math::*;
+pub use plugin::*;
+pub use systems::*;

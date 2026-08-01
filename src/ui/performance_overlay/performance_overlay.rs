@@ -24,13 +24,12 @@ pub(crate) struct PerformanceText;
 fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32, f64) {
     let fps = diagnostics
         .get(&FrameTimeDiagnosticsPlugin::FPS)
-        .and_then(|d| d.smoothed())
+        .and_then(|d| d.average())
         .unwrap_or(0.0);
     let frame_time_ms = diagnostics
         .get(&FrameTimeDiagnosticsPlugin::FRAME_TIME)
         .and_then(|d| d.average())
-        .unwrap_or(0.0)
-        * 1000.0;
+        .unwrap_or(0.0);
     let entities = diagnostics
         .get(&EntityCountDiagnosticsPlugin::ENTITY_COUNT)
         .and_then(|d| d.value())
@@ -153,7 +152,7 @@ pub(crate) fn update_overlay_text(
         let (fps, frame_time_ms, entities, mem_mb) = get_performance_metrics(&diagnostics);
         for mut span in &mut text_query {
             **span = format!(
-                "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}\nRAM: {:.2} MB",
+                "FPS: {:.1}\nFrame time: {:.2} ms\nEntities: {}\nRAM: {:.2} MB",
                 fps, frame_time_ms, entities, mem_mb
             );
         }
