@@ -3,12 +3,14 @@ use bevy::log;
 use crate::camera::CameraPlugin;
 use crate::game::{GameSessionState, PlayState, WorldGeneratedEvent};
 use crate::generation::WorldGenerationPlugin;
-use crate::rendering::{HexRenderingPlugin};
+use crate::rendering::HexRenderingPlugin;
 
+use crate::hex::ChunkMap;
+use crate::simulation::clock::SimClock;
+use crate::simulation::plugin::SimulationPlugin;
 use crate::ui::UIPlugin;
 use bevy::prelude::*;
-use bevy_settings::{SettingsPlugin};
-use crate::hex::ChunkMap;
+use bevy_settings::SettingsPlugin;
 
 /// Главный плагин игры.
 /// Связывает все подсистемы: генерацию, рендеринг, камеру и UI.
@@ -21,11 +23,9 @@ impl Plugin for GamePlugin {
             .init_state::<GameSessionState>()
             .add_sub_state::<PlayState>()
             .add_message::<WorldGeneratedEvent>()
-
             // --- Ресурсы ---
             // ChunkMap инициализируется пустым для защиты от гонок
             .init_resource::<ChunkMap>()
-
             // --- Подключаемые плагины ---
             .add_plugins((
                 CameraPlugin,
@@ -33,8 +33,8 @@ impl Plugin for GamePlugin {
                 HexRenderingPlugin,
                 UIPlugin,
                 SettingsPlugin::new("org.bevy.examples.settings"),
+                SimulationPlugin,
             ))
-
             // --- Глобальные игровые системы ---
             .add_systems(
                 Update,
@@ -53,15 +53,18 @@ pub fn handle_pause(
     keyboard: Res<ButtonInput<KeyCode>>,
     current_play_state: Res<State<PlayState>>,
     mut next_play_state: ResMut<NextState<PlayState>>,
+    mut sim_clock: ResMut<SimClock>,
 ) {
     if keyboard.just_pressed(KeyCode::Escape) {
         match current_play_state.get() {
             PlayState::Playing => {
                 next_play_state.set(PlayState::Paused);
+                sim_clock.paused = true;
                 info!("Game is paused!");
             }
             PlayState::Paused => {
                 next_play_state.set(PlayState::Playing);
+                sim_clock.paused = false;
                 info!("Game is playing");
             }
             _ => {}

@@ -20,6 +20,7 @@ pub struct GameSettings {
     pub generation: GenerationSettings,
     pub rendering: RenderingSettings,
     pub debug: DebugSettings,
+    pub simulation: SimulationSettings,
 }
 
 impl Default for GameSettings {
@@ -33,6 +34,7 @@ impl Default for GameSettings {
             generation: GenerationSettings::default(),
             rendering: RenderingSettings::default(),
             debug: DebugSettings::default(),
+            simulation: SimulationSettings::default(),
         }
     }
 }
@@ -41,6 +43,7 @@ impl GameSettings {
     pub fn validate_all(&mut self) {
         self.generation.validate();
         self.rendering.validate();
+        self.simulation.validate();
     }
 }
 
@@ -282,6 +285,67 @@ impl Default for PerformanceOverlaySettings {
             fps_average_frames: 60,
             toggle_key: KeyCodeSettings::F12,
             update_interval_secs: 0.5,
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Simulation
+// -----------------------------------------------------------------------------
+
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource, Default)]
+pub struct SimulationSettings {
+    /// Длительность одного тика в секундах (например, 0.1)
+    pub tick_duration: f64,
+    /// Множитель максимальной скорости при прыжке
+    pub max_jump_speed: f64,
+    /// Интервалы обновления в тиках для LOD 0, 1, 2
+    pub lod_intervals: [u64; 3],
+    /// Порог прыжка: если прыжок длиннее этого числа тиков,
+    /// использовать агрегированный пересчёт (пока не реализовано)
+    pub jump_aggregation_threshold: u64,
+}
+
+impl Default for SimulationSettings {
+    fn default() -> Self {
+        Self {
+            tick_duration: 0.1,
+            max_jump_speed: 1000.0,
+            lod_intervals: [1, 10, 100],
+            jump_aggregation_threshold: 24 * 60 * 60 * 10, // 1 игровой день
+        }
+    }
+}
+
+impl SimulationSettings {
+    pub fn validate(&mut self) {
+        if !self.tick_duration.is_finite() || self.tick_duration <= 0.0 {
+            warn!(
+                "SimulationSettings.tick_duration was {}, forcing to 0.1",
+                self.tick_duration
+            );
+            self.tick_duration = 0.1;
+        }
+        if !self.max_jump_speed.is_finite() || self.max_jump_speed <= 0.0 {
+            warn!(
+                "SimulationSettings.max_jump_speed was {}, forcing to 1000.0",
+                self.max_jump_speed
+            );
+            self.max_jump_speed = 1000.0;
+        }
+        for i in 0..3 {
+            if self.lod_intervals[i] == 0 {
+                warn!(
+                    "SimulationSettings.lod_intervals[{}] was 0, forcing to 1",
+                    i
+                );
+                self.lod_intervals[i] = 1;
+            }
+        }
+        if self.jump_aggregation_threshold == 0 {
+            warn!("SimulationSettings.jump_aggregation_threshold was 0, forcing to 864000");
+            self.jump_aggregation_threshold = 24 * 60 * 60 * 10;
         }
     }
 }

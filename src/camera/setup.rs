@@ -33,7 +33,7 @@ pub fn setup_camera_on_world_generated(
         let camera_height = 400.0;   // Высота над картой
         let camera_pitch = -1.0;     // Наклон ~57° вниз (чтобы видеть рельеф)
 
-        // ← ИСПРАВЛЕНИЕ 2: Правильное формирование Vec3
+
         // X = позиция центра карты по X
         // Y = camera_height (ВВЕРХ!)
         // Z = позиция центра карты по Z
@@ -43,7 +43,7 @@ pub fn setup_camera_on_world_generated(
             center_world.z,      // Z из центра карты
         );
 
-        // ← ИСПРАВЛЕНИЕ 3: Наклон вместо строго вертикального вида
+
         // Это позволяет видеть высоту гексов (рельеф)
         let camera_rotation = Quat::from_euler(
             EulerRot::XYZ,
