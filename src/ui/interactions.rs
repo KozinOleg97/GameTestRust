@@ -1,7 +1,7 @@
-use crate::ui::style::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON};
+use crate::ui::theme::UiTheme;
 use bevy::app::{App, Plugin, Update};
 use bevy::picking::hover::Hovered;
-use bevy::prelude::{BackgroundColor, Has, Query, With};
+use bevy::prelude::{BackgroundColor, Has, Query, Res, With};
 use bevy::ui::Pressed;
 use bevy::ui_widgets::Button;
 
@@ -22,15 +22,16 @@ impl Plugin for InteractionPlugin {
 /// на отпускании мыши не изменило бы `Hovered`, и кнопка залипла бы в нажатом цвете.
 /// Вместо этого состояние читается каждый кадр, а запись идёт только при отличии.
 fn button_system(
+    theme: Res<UiTheme>,
     mut interaction_query: Query<(&mut BackgroundColor, &Hovered, Has<Pressed>), With<Button>>,
 ) {
     for (mut color, hovered, pressed) in &mut interaction_query {
         let target = if pressed {
-            PRESSED_BUTTON
+            theme.button_pressed
         } else if hovered.0 {
-            HOVERED_BUTTON
+            theme.button_hovered
         } else {
-            NORMAL_BUTTON
+            theme.button_normal
         };
 
         if color.0 != target {

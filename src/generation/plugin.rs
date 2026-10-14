@@ -4,7 +4,8 @@ use crate::game::{
 use crate::generation::ProceduralWorldGenerator;
 use crate::hex::{ChunkData, ChunkLayout, ChunkMap, HexChunk, MapBounds};
 use crate::rendering::{MeshGeneration, hex_world_position_with};
-use crate::ui::widgets::{spawn_menu_root, spawn_title};
+use crate::ui::kit::{spawn_screen_root, spawn_title};
+use crate::ui::theme::UiTheme;
 
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
@@ -38,7 +39,9 @@ struct GenerationTask {
     hex_size: f32,
 }
 
-fn setup_loading_screen(mut commands: Commands, config: Res<GameSettings>) {
+fn setup_loading_screen(mut commands: Commands, config: Res<GameSettings>, theme: Res<UiTheme>) {
+    let theme = &*theme;
+
     if config.debug.log_generation {
         info!("Entering Loading state...");
     }
@@ -52,8 +55,8 @@ fn setup_loading_screen(mut commands: Commands, config: Res<GameSettings>) {
         DespawnOnExit(GameSessionState::Loading),
     ));
 
-    spawn_menu_root(&mut commands, GameSessionState::Loading, |parent| {
-        spawn_title(parent, "World generation...");
+    spawn_screen_root(&mut commands, theme, GameSessionState::Loading, |parent| {
+        spawn_title(parent, theme, "World generation...");
     });
 
     let generation = config.generation.clone();

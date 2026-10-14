@@ -1,23 +1,10 @@
-use bevy::ecs::system::ParamSet;
-use bevy::picking::hover::Hovered;
-use bevy::prelude::*;
-use bevy::ui::Pressed;
-use bevy::ui_widgets::Button;
-
 use crate::game::GameSessionState;
-use crate::simulation::{SimClock, TimeJumpProgress, TimeJumpRequest, TimeJumpState};
-use crate::ui::style::*;
-
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
-pub enum TimeControlAction {
-    PauseToggle,
-    SetSpeed1x,
-    SetSpeed2x,
-    SetSpeed5x,
-    SetSpeed10x,
-    JumpHour,
-    JumpDay,
-}
+use crate::simulation::{SimClock, TimeJumpProgress, TimeJumpState};
+use crate::ui::actions::UiAction;
+use crate::ui::kit::{spawn_hud_button, spawn_label, spawn_progress_bar};
+use crate::ui::theme::UiTheme;
+use bevy::ecs::system::ParamSet;
+use bevy::prelude::*;
 
 #[derive(Component)]
 struct SimulationUIRoot;
@@ -44,15 +31,13 @@ pub struct SimulationUIPlugin;
 
 impl Plugin for SimulationUIPlugin {
     fn build(&self, app: &mut App) {
+        // Кнопки панели больше не обрабатываются отдельной системой: они несут
+        // `UiAction`, а разбирает их единый обработчик в `ui::actions`.
         app.add_systems(OnEnter(GameSessionState::Active), spawn_simulation_ui)
             .add_systems(OnEnter(TimeJumpState::InProgress), spawn_time_jump_ui)
             .add_systems(
                 Update,
-                (
-                    handle_time_control_buttons,
-                    update_time_display,
-                    toggle_ui_visibility,
-                )
+                (update_time_display, toggle_ui_visibility)
                     .chain()
                     .run_if(in_state(GameSessionState::Active))
                     .run_if(in_state(TimeJumpState::Inactive)),
@@ -66,7 +51,9 @@ impl Plugin for SimulationUIPlugin {
     }
 }
 
-fn spawn_simulation_ui(mut commands: Commands) {
+fn spawn_simulation_ui(mut commands: Commands, theme: Res<UiTheme>) {
+    let theme = &*theme;
+
     commands
         .spawn((
             Node {
@@ -78,25 +65,26 @@ fn spawn_simulation_ui(mut commands: Commands) {
                 row_gap: Val::Px(5.0),
                 ..default()
             },
-            BackgroundColor(Color::NONE),
             DespawnOnExit(GameSessionState::Active),
             Visibility::Visible,
             SimulationUIRoot,
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Text::new("Time: 00:00:00"),
-                ui_font(18.0),
-                TextColor(TEXT_COLOR),
+            spawn_label(
+                parent,
+                theme,
+                "Time: 00:00:00",
+                theme.font_small,
                 TimeDisplayText,
-            ));
+            );
 
-            parent.spawn((
-                Text::new("Speed: 1x"),
-                ui_font(18.0),
-                TextColor(TEXT_COLOR),
+            spawn_label(
+                parent,
+                theme,
+                "Speed: 1x",
+                theme.font_small,
                 SpeedDisplayText,
-            ));
+            );
 
             parent
                 .spawn(Node {
@@ -105,33 +93,15 @@ fn spawn_simulation_ui(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|buttons| {
-                    spawn_time_button(buttons, "⏸", TimeControlAction::PauseToggle);
-                    spawn_time_button(buttons, "1x", TimeControlAction::SetSpeed1x);
-                    spawn_time_button(buttons, "2x", TimeControlAction::SetSpeed2x);
-                    spawn_time_button(buttons, "5x", TimeControlAction::SetSpeed5x);
-                    spawn_time_button(buttons, "10x", TimeControlAction::SetSpeed10x);
-                    spawn_time_button(buttons, "+1h", TimeControlAction::JumpHour);
-                    spawn_time_button(buttons, "+1d", TimeControlAction::JumpDay);
+                    spawn_hud_button(buttons, theme, "⏸", UiAction::PauseToggle);
+                    spawn_hud_button(buttons, theme, "1x", UiAction::SetSpeed(1.0));
+                    spawn_hud_button(buttons, theme, "2x", UiAction::SetSpeed(2.0));
+                    spawn_hud_button(buttons, theme, "5x", UiAction::SetSpeed(5.0));
+                    spawn_hud_button(buttons, theme, "10x", UiAction::SetSpeed(10.0));
+                    spawn_hud_button(buttons, theme, "+1h", UiAction::JumpHours(1));
+                    spawn_hud_button(buttons, theme, "+1d", UiAction::JumpDays(1));
                 });
         });
-}
-
-fn spawn_time_button(parent: &mut ChildSpawnerCommands, label: &str, action: TimeControlAction) {
-    parent
-        .spawn((
-            Button,
-            Hovered(false),
-            action,
-            Node {
-                width: Val::Px(42.0),
-                height: Val::Px(30.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BackgroundColor(NORMAL_BUTTON),
-        ))
-        .with_child((Text::new(label), ui_font(16.0), TextColor(TEXT_COLOR)));
 }
 
 fn update_time_display(
@@ -178,49 +148,6 @@ fn update_time_display(
     }
 }
 
-fn handle_time_control_buttons(
-    mut clock: ResMut<SimClock>,
-    mut jump_request: ResMut<TimeJumpRequest>,
-    interaction_query: Query<&TimeControlAction, (With<Button>, Added<Pressed>)>,
-) {
-    let tick_duration = clock.tick_duration_safe();
-
-    if let Some(action) = interaction_query.iter().next() {
-        match action {
-            TimeControlAction::PauseToggle => {
-                clock.paused = !clock.paused;
-                info!("Simulation paused: {}", clock.paused);
-            }
-
-            TimeControlAction::SetSpeed1x => {
-                clock.set_time_scale(1.0);
-            }
-
-            TimeControlAction::SetSpeed2x => {
-                clock.set_time_scale(2.0);
-            }
-
-            TimeControlAction::SetSpeed5x => {
-                clock.set_time_scale(5.0);
-            }
-
-            TimeControlAction::SetSpeed10x => {
-                clock.set_time_scale(10.0);
-            }
-
-            TimeControlAction::JumpHour => {
-                let ticks = (3600.0 / tick_duration) as u64;
-                jump_request.0 += ticks.max(1);
-            }
-
-            TimeControlAction::JumpDay => {
-                let ticks = (24.0 * 3600.0 / tick_duration) as u64;
-                jump_request.0 += ticks.max(1);
-            }
-        }
-    }
-}
-
 fn toggle_ui_visibility(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Visibility, With<SimulationUIRoot>>,
@@ -237,7 +164,9 @@ fn toggle_ui_visibility(
     }
 }
 
-fn spawn_time_jump_ui(mut commands: Commands) {
+fn spawn_time_jump_ui(mut commands: Commands, theme: Res<UiTheme>) {
+    let theme = &*theme;
+
     commands
         .spawn((
             Node {
@@ -252,44 +181,23 @@ fn spawn_time_jump_ui(mut commands: Commands) {
                 row_gap: Val::Px(18.0),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.85)),
+            BackgroundColor(theme.panel_background),
             DespawnOnExit(TimeJumpState::InProgress),
             Visibility::Visible,
             TimeJumpRoot,
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Text::new("Пропускаем время..."),
-                ui_font(28.0),
-                TextColor(TEXT_COLOR),
+            spawn_label(
+                parent,
+                theme,
+                "Пропускаем время...",
+                theme.font_heading,
                 TimeJumpStatusText,
-            ));
+            );
 
-            parent.spawn((
-                Text::new(""),
-                ui_font(22.0),
-                TextColor(TEXT_COLOR),
-                TimeJumpDateText,
-            ));
+            spawn_label(parent, theme, "", theme.font_body, TimeJumpDateText);
 
-            parent
-                .spawn((
-                    Node {
-                        width: Val::Px(420.0),
-                        height: Val::Px(18.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgba(0.25, 0.25, 0.25, 1.0)),
-                ))
-                .with_child((
-                    Node {
-                        width: Val::Percent(0.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.2, 0.85, 0.3)),
-                    TimeJumpProgressFill,
-                ));
+            spawn_progress_bar(parent, theme, TimeJumpProgressFill);
         });
 }
 
@@ -356,11 +264,4 @@ fn format_sim_time(seconds: f64) -> String {
     let secs = total_seconds % 60;
 
     format!("Day {} {:02}:{:02}:{:02}", days, hours, minutes, secs)
-}
-
-fn ui_font(size: f32) -> TextFont {
-    TextFont {
-        font_size: FontSize::Px(size),
-        ..default()
-    }
 }

@@ -1,13 +1,14 @@
 use crate::game::GameSessionState;
-use crate::ui::main_menu::buttons::MainMenuAction;
-use crate::ui::widgets::{spawn_menu_root, spawn_text_button, spawn_title};
+use crate::ui::actions::UiAction;
+use crate::ui::kit::{spawn_button, spawn_screen_root, spawn_title};
+use crate::ui::theme::UiTheme;
 use bevy::prelude::*;
-use bevy::ui::Pressed;
-use bevy::ui_widgets::Button;
-use bevy_settings::SaveSettingsSync;
 
-fn spawn_main_menu(mut commands: Commands) {
+fn spawn_main_menu(mut commands: Commands, theme: Res<UiTheme>) {
+    let theme = &*theme;
+
     info!("Spawned main menu");
+
     commands.spawn((
         Camera2d,
         Camera {
@@ -17,47 +18,18 @@ fn spawn_main_menu(mut commands: Commands) {
         DespawnOnExit(GameSessionState::MainMenu),
     ));
 
-    spawn_menu_root(&mut commands, GameSessionState::MainMenu, |parent| {
-        spawn_title(parent, "Hex Game");
+    spawn_screen_root(&mut commands, theme, GameSessionState::MainMenu, |parent| {
+        spawn_title(parent, theme, "Hex Game");
 
-        spawn_text_button(parent, "Start Game", MainMenuAction::StartGame);
-        spawn_text_button(parent, "Save settings", MainMenuAction::SaveSettings);
+        spawn_button(parent, theme, "Start Game", UiAction::StartGame);
+        spawn_button(parent, theme, "Save settings", UiAction::SaveSettings);
     });
-}
-
-/// Централизованная обработка всех нажатий кнопок главного меню
-fn main_menu_action(
-    interaction_query: Query<&MainMenuAction, (With<Button>, Added<Pressed>)>,
-    mut next_session_state: ResMut<NextState<GameSessionState>>,
-    // mut next_play_state: ResMut<NextState<PlayState>>,
-    mut commands: Commands,
-) {
-    for action in &interaction_query {
-        match action {
-            MainMenuAction::StartGame => {
-                next_session_state.set(GameSessionState::Loading);
-                // next_play_state.set(PlayState::Playing);
-                info!("Staring game session");
-            }
-            MainMenuAction::SaveSettings => {
-                commands.queue(SaveSettingsSync::Always);
-                info!("Settings saved");
-            }
-        }
-    }
 }
 
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app
-            // Спавн UI при входе в состояние меню
-            .add_systems(OnEnter(GameSessionState::MainMenu), spawn_main_menu)
-            // Системы, работающие только когда мы в главном меню
-            .add_systems(
-                Update,
-                (main_menu_action).run_if(in_state(GameSessionState::MainMenu)),
-            );
+        app.add_systems(OnEnter(GameSessionState::MainMenu), spawn_main_menu);
     }
 }
