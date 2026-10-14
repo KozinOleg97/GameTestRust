@@ -1,13 +1,10 @@
 use crate::game::GameSettings;
-use bevy::prelude::*;
-use bevy::text::{TextColor, TextFont, TextSpan};
-use bevy::ui::{BackgroundColor, Node, PositionType, Val};
-
-// --- Импорты для диагностики Bevy ---
+use crate::ui::theme::UiTheme;
 use bevy::diagnostic::{
     DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin,
     SystemInformationDiagnosticsPlugin,
 };
+use bevy::prelude::*;
 
 // -----------------------------------------------------------------------------
 // Компоненты для UI оверлея
@@ -66,59 +63,61 @@ pub(crate) fn toggle_overlay_visibility(
 }
 
 // -----------------------------------------------------------------------------
-// Создание / удаление UI оверлея на основе текущих настроек
+// Создание HUD оверлея — один раз при старте приложения
 // -----------------------------------------------------------------------------
-pub(crate) fn manage_overlay_ui(
+/// Долгоживущий HUD: создаётся один раз и дальше только переключает видимость.
+///
+/// Раньше оверлей спавнился и деспавнился системой из `Update` по флагу
+/// настройки — это было третье правило жизненного цикла рядом с правилом
+/// экранов. Теперь правил два, и оба названы явно.
+pub(crate) fn spawn_overlay_hud(
     mut commands: Commands,
+    theme: Res<UiTheme>,
     game_settings: Res<GameSettings>,
-    diagnostics: Res<DiagnosticsStore>,
-    root_query: Query<Entity, With<PerformanceOverlayRoot>>,
-    asset_server: Res<AssetServer>,
 ) {
     let config = &game_settings.performance_overlay;
-    let is_spawned = !root_query.is_empty();
+    let (x, y) = config.position;
 
-    if config.visible && !is_spawned {
-        let (x, y) = config.position;
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf").into();
-        let (fps, frame_time_ms, entities, mem_mb) = get_performance_metrics(&diagnostics);
+    commands.spawn((
+        PerformanceOverlayRoot,
+        PerformanceText,
+        Text::new(""),
+        theme.text_font(theme.font_button),
+        TextColor(theme.text),
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(x),
+            top: Val::Px(y),
+            ..default()
+        },
+        BackgroundColor(theme.overlay_background),
+        if config.visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        },
+    ));
 
-        let mut root_cmd = commands.spawn((
-            PerformanceOverlayRoot,
-            Text::new(""),
-            TextFont {
-                font,
-                font_size: FontSize::Px(config.font_size),
-                ..default()
-            },
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(x),
-                top: Val::Px(y),
-                ..default()
-            },
-        ));
+    info!("Performance overlay hud spawned");
+}
 
-        if let Some(bg_color) = config.background_color {
-            root_cmd.insert(BackgroundColor(tuple_to_color(bg_color)));
+// -----------------------------------------------------------------------------
+// Видимость HUD следует за настройкой
+// -----------------------------------------------------------------------------
+pub(crate) fn sync_overlay_visibility(
+    game_settings: Res<GameSettings>,
+    mut query: Query<&mut Visibility, With<PerformanceOverlayRoot>>,
+) {
+    let target = if game_settings.performance_overlay.visible {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+
+    for mut visibility in &mut query {
+        if *visibility != target {
+            *visibility = target;
         }
-
-        root_cmd.with_children(|parent| {
-            parent.spawn((
-                TextSpan::new(format!(
-                    "FPS: {:.1}\nFrame: {:.2} ms\nEntities: {}\nRAM: {:.2} MB",
-                    fps, frame_time_ms, entities, mem_mb
-                )),
-                TextColor(tuple_to_color(config.text_color)),
-                PerformanceText,
-            ));
-        });
-        info!("Performance overlay spawned");
-    } else if !config.visible && is_spawned {
-        for entity in root_query.iter() {
-            commands.entity(entity).despawn();
-        }
-        info!("Performance overlay despawned");
     }
 }
 
@@ -130,7 +129,7 @@ pub(crate) fn update_overlay_text(
     mut elapsed: Local<f32>,
     game_settings: Res<GameSettings>,
     diagnostics: Res<DiagnosticsStore>,
-    mut text_query: Query<&mut TextSpan, With<PerformanceText>>,
+    mut text_query: Query<&mut Text, With<PerformanceText>>,
 ) {
     if !game_settings.performance_overlay.visible {
         return;
@@ -150,18 +149,11 @@ pub(crate) fn update_overlay_text(
         *elapsed = 0.0; // Сбрасываем таймер
 
         let (fps, frame_time_ms, entities, mem_mb) = get_performance_metrics(&diagnostics);
-        for mut span in &mut text_query {
-            **span = format!(
+        for mut text in &mut text_query {
+            text.0 = format!(
                 "FPS: {:.1}\nFrame time: {:.2} ms\nEntities: {}\nRAM: {:.2} MB",
                 fps, frame_time_ms, entities, mem_mb
             );
         }
     }
-}
-
-// -----------------------------------------------------------------------------
-// Вспомогательная функция: кортеж (r,g,b,a) -> Color
-// -----------------------------------------------------------------------------
-fn tuple_to_color(rgba: (f32, f32, f32, f32)) -> Color {
-    Color::srgba(rgba.0, rgba.1, rgba.2, rgba.3)
 }

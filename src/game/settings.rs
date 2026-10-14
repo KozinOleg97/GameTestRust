@@ -244,14 +244,16 @@ impl Default for WindowSettings {
 // FPS overlay
 // -----------------------------------------------------------------------------
 
+/// Настройки оверлея производительности.
+///
+/// Здесь только пользовательские предпочтения: видимость, позиция и частота
+/// обновления. Цвет, размер шрифта и фон оверлея задаёт `UiTheme`, чтобы вид
+/// интерфейса определялся в одном месте.
 #[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct PerformanceOverlaySettings {
     pub visible: bool,
     pub position: (f32, f32),
-    pub font_size: f32,
-    pub text_color: (f32, f32, f32, f32),
-    pub background_color: Option<(f32, f32, f32, f32)>,
     pub fps_average_frames: usize,
     pub toggle_key: KeyCodeSettings,
     pub update_interval_secs: f32,
@@ -262,9 +264,6 @@ impl Default for PerformanceOverlaySettings {
         Self {
             visible: true,
             position: (10.0, 10.0),
-            font_size: 24.0,
-            text_color: (1.0, 1.0, 1.0, 1.0),
-            background_color: Some((0.0, 0.0, 0.0, 0.5)),
             fps_average_frames: 60,
             toggle_key: KeyCodeSettings::F12,
             update_interval_secs: 0.5,

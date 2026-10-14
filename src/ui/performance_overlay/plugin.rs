@@ -1,7 +1,7 @@
 use crate::ui::performance_overlay::performance_overlay::{
-    manage_overlay_ui, toggle_overlay_visibility, update_overlay_text,
+    spawn_overlay_hud, sync_overlay_visibility, toggle_overlay_visibility, update_overlay_text,
 };
-use bevy::app::{App, Plugin, Update};
+use bevy::app::{App, Plugin, Startup, Update};
 use bevy::diagnostic::{
     EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin, SystemInformationDiagnosticsPlugin,
 };
@@ -17,11 +17,14 @@ impl Plugin for PerformanceOverlayPlugin {
         // Плагин для отслеживания CPU и RAM
         app.add_plugins(SystemInformationDiagnosticsPlugin);
 
+        // HUD создаётся один раз при старте, поэтому в Update остаётся только
+        // переключение флага, синхронизация видимости и обновление текста.
+        app.add_systems(Startup, spawn_overlay_hud);
         app.add_systems(
             Update,
             (
                 toggle_overlay_visibility,
-                manage_overlay_ui,
+                sync_overlay_visibility,
                 update_overlay_text,
             )
                 .chain(),
