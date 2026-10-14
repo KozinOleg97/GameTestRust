@@ -2,7 +2,7 @@ use crate::game::{GameSessionState, PlayState};
 use crate::simulation::{SimClock, TimeJumpRequest};
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
-use bevy_settings::SaveSettingsSync;
+use bevy_settings::SaveSettings;
 
 /// Все действия, которые интерфейс может запросить у игры.
 ///
@@ -49,7 +49,7 @@ pub fn on_ui_activate(
             info!("Starting game session");
         }
         UiAction::SaveSettings => {
-            commands.queue(SaveSettingsSync::Always);
+            commands.queue(SaveSettings::IfChanged);
             info!("Settings saved");
         }
 

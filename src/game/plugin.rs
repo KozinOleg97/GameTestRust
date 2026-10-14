@@ -26,11 +26,11 @@ impl Plugin for GamePlugin {
             .init_resource::<ChunkMap>()
             // --- Подключаемые плагины ---
             .add_plugins((
+                SettingsPlugin::new("org.bevy.examples.settings"),
                 CameraPlugin,
                 WorldGenerationPlugin,
                 HexRenderingPlugin,
                 UIPlugin,
-                SettingsPlugin::new("org.bevy.examples.settings"),
                 SimulationPlugin,
             ))
             // --- Глобальные игровые системы ---
