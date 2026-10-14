@@ -1,4 +1,5 @@
 use crate::game::GameSettings;
+use crate::pointer::PointerOcclusion;
 use crate::ui::theme::UiTheme;
 use bevy::diagnostic::{
     DiagnosticsStore, EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin,
@@ -115,6 +116,9 @@ fn spawn_overlay_hud(
             ..default()
         },
         BackgroundColor(theme.overlay_background),
+        // Отладочная панель прозрачна для указателя: у неё нет интерактивных
+        // элементов, и она не должна мешать смотреть свойства гексов под собой.
+        PointerOcclusion::Transparent,
         if config.visible {
             Visibility::Visible
         } else {

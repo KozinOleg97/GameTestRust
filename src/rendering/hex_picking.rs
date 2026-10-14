@@ -5,6 +5,7 @@ use crate::game::GameSettings;
 use crate::hex::{
     ChunkData, ChunkLayout, ChunkMap, HexCoordinates, HoveredHex, MapBounds, SelectedHex,
 };
+use crate::pointer::PointerBlocked;
 
 /// Цвет контура наведённого гекса.
 const HOVERED_OUTLINE: Color = Color::srgb(1.0, 0.85, 0.2);
@@ -12,12 +13,21 @@ const HOVERED_OUTLINE: Color = Color::srgb(1.0, 0.85, 0.2);
 /// Цвет контура выделенного гекса.
 const SELECTED_OUTLINE: Color = Color::srgb(0.3, 0.9, 0.4);
 
+/// Порог в пикселях, до которого движение мыши считается кликом.
+///
+/// Левая кнопка одновременно панорамирует камеру, поэтому без порога
+/// перетаскивание заодно выбирало бы гекс под курсором.
+const CLICK_DRAG_THRESHOLD: f32 = 4.0;
+
 /// Гекс под курсором.
 ///
 /// Луч берётся тем же способом, что и в управлении камерой: `viewport_to_world`
 /// и пересечение с плоскостью `y = 0`. Это намеренно простое приближение — на
 /// возвышенностях оно промахивается, и первое, что здесь стоит заменить, это
 /// марш луча по высотам из `ChunkData.elevations`.
+// Длина списка — свойство ECS-системы: это разные части мира, и группировать тут
+// нечего. Как и в `process_mesh_build_queue_system`, разрешаем явно.
+#[allow(clippy::too_many_arguments)]
 pub fn update_hovered_hex(
     windows: Query<&Window>,
     cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
@@ -25,8 +35,16 @@ pub fn update_hovered_hex(
     layout: Res<ChunkLayout>,
     bounds: Res<MapBounds>,
     chunk_map: Res<ChunkMap>,
+    pointer: Res<PointerBlocked>,
     mut hovered: ResMut<HoveredHex>,
 ) {
+    // Над непрозрачной панелью мир не наводится: пропадает и контур, и выбор,
+    // потому что он смотрит на этот же `hovered`.
+    if pointer.get() {
+        hovered.0 = None;
+        return;
+    }
+
     let candidate = cursor_hex(&windows, &cameras, settings.rendering.hex_size);
 
     // За пределами карты и в незагруженных чанках наведения нет: панель не должна
@@ -39,16 +57,63 @@ pub fn update_hovered_hex(
     });
 }
 
+/// Где началось нажатие и не перехватила ли его панель.
+///
+/// `pub(crate)` — потому что тип виден в подписи системы, которую регистрирует
+/// плагин из другого модуля.
+pub(crate) struct PressStart {
+    position: Vec2,
+    blocked: bool,
+}
+
 /// Закрепление выбора кликом.
 ///
 /// Это не запрос интерфейса, а взаимодействие с миром, поэтому живёт в домене:
 /// UI здесь ни при чём, он только показывает результат.
+///
+/// Выбор ставится на отпускании и только если мышь не уехала: левая кнопка
+/// одновременно панорамирует камеру, и без порога перетаскивание заодно
+/// выбирало бы гекс. Нажатие, начатое над непрозрачной панелью, не выбирает
+/// ничего — панель забрала жест себе, и это решается в момент нажатия, а не
+/// отпускания.
 pub fn select_hex_on_click(
+    windows: Query<&Window>,
     buttons: Res<ButtonInput<MouseButton>>,
     hovered: Res<HoveredHex>,
+    pointer: Res<PointerBlocked>,
     mut selected: ResMut<SelectedHex>,
+    mut press: Local<Option<PressStart>>,
 ) {
-    if !buttons.just_pressed(MouseButton::Left) {
+    let cursor = windows
+        .single()
+        .ok()
+        .and_then(|window| window.cursor_position());
+
+    if buttons.just_pressed(MouseButton::Left) {
+        *press = cursor.map(|position| PressStart {
+            position,
+            blocked: pointer.get(),
+        });
+        return;
+    }
+
+    if !buttons.just_released(MouseButton::Left) {
+        return;
+    }
+
+    let Some(start) = press.take() else {
+        return;
+    };
+
+    if start.blocked {
+        return;
+    }
+
+    let Some(end) = cursor else {
+        return;
+    };
+
+    if start.position.distance(end) > CLICK_DRAG_THRESHOLD {
         return;
     }
 

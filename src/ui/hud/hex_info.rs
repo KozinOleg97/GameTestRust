@@ -1,5 +1,6 @@
 use crate::game::GameSessionState;
 use crate::hex::{ChunkData, ChunkLayout, ChunkMap, HexInfo, SelectedHex, get_hex_info};
+use crate::pointer::PointerOcclusion;
 use crate::ui::kit::{spawn_label, spawn_panel};
 use crate::ui::theme::UiTheme;
 use bevy::prelude::*;
@@ -42,6 +43,7 @@ fn spawn_hex_info_panel(mut commands: Commands, theme: Res<UiTheme>) {
         },
         HexInfoPanel,
         GameSessionState::Active,
+        PointerOcclusion::Opaque,
     );
 
     commands.entity(panel).with_children(|parent| {

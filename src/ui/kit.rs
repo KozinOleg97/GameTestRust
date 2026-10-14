@@ -1,3 +1,4 @@
+use crate::pointer::PointerOcclusion;
 use crate::ui::actions::UiAction;
 use crate::ui::theme::UiTheme;
 use bevy::picking::hover::Hovered;
@@ -26,6 +27,7 @@ pub fn spawn_screen_root<S: States>(
                 ..default()
             },
             BackgroundColor(theme.menu_background),
+            PointerOcclusion::Opaque,
             DespawnOnExit(state),
         ))
         .with_children(build_children);
@@ -120,12 +122,16 @@ pub fn spawn_label<M: Component>(
 }
 
 /// Панель HUD: узел с фоном панели, живущий столько же, сколько его контекст.
+///
+/// `pointer` — свойство панели: непрозрачная забирает клики и перетаскивания
+/// себе, прозрачная пропускает их к миру.
 pub fn spawn_panel<S: States, M: Component>(
     commands: &mut Commands,
     theme: &UiTheme,
     node: Node,
     marker: M,
     state: S,
+    pointer: PointerOcclusion,
 ) -> Entity {
     commands
         .spawn((
@@ -133,6 +139,7 @@ pub fn spawn_panel<S: States, M: Component>(
             BackgroundColor(theme.panel_background),
             Visibility::Visible,
             marker,
+            pointer,
             DespawnOnExit(state),
         ))
         .id()

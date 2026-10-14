@@ -9,6 +9,7 @@ use super::systems::{
 };
 use crate::game::{GameSessionState, PlayState};
 use crate::hex::{ChunkLayout, ChunkMap, HoveredHex, MapBounds, SelectedHex};
+use crate::pointer::update_pointer_blocked;
 use crate::rendering::{debug_frustum_stats, log_when_all_chunks_meshed};
 
 pub struct HexRenderingPlugin;
@@ -47,6 +48,7 @@ impl Plugin for HexRenderingPlugin {
                 Update,
                 (update_hovered_hex, select_hex_on_click)
                     .chain()
+                    .after(update_pointer_blocked)
                     .run_if(in_state(GameSessionState::Active))
                     .run_if(in_state(PlayState::Playing)),
             )

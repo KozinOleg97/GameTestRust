@@ -6,6 +6,7 @@ mod camera;
 mod game;
 mod generation;
 mod hex;
+mod pointer;
 mod rendering;
 mod simulation;
 mod ui;

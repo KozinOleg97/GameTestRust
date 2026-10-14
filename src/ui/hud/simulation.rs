@@ -1,4 +1,5 @@
 use crate::game::GameSessionState;
+use crate::pointer::PointerOcclusion;
 use crate::simulation::{SimClock, TimeJumpProgress, TimeJumpState};
 use crate::ui::actions::SimulationAction;
 use crate::ui::kit::{spawn_hud_button, spawn_label, spawn_progress_bar};
@@ -68,6 +69,7 @@ fn spawn_simulation_ui(mut commands: Commands, theme: Res<UiTheme>) {
             },
             DespawnOnExit(GameSessionState::Active),
             Visibility::Visible,
+            PointerOcclusion::Opaque,
             SimulationUIRoot,
         ))
         .with_children(|parent| {
@@ -185,6 +187,7 @@ fn spawn_time_jump_ui(mut commands: Commands, theme: Res<UiTheme>) {
             BackgroundColor(theme.panel_background),
             DespawnOnExit(TimeJumpState::InProgress),
             Visibility::Visible,
+            PointerOcclusion::Opaque,
             TimeJumpRoot,
         ))
         .with_children(|parent| {

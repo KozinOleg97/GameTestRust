@@ -1,6 +1,21 @@
+use crate::pointer::PointerBlocked;
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+
+/// Какие перетаскивания камера уже забрала себе.
+///
+/// Захват нужен, чтобы жест решался один раз, в момент нажатия: перетаскивание,
+/// начатое в мире, продолжается, даже если курсор уехал над панелью, а начатое
+/// над панелью не начинается вовсе.
+///
+/// `pub(crate)` — потому что тип виден в подписи системы, которую регистрирует
+/// плагин из другого модуля.
+#[derive(Default)]
+pub(crate) struct DragCapture {
+    pan: bool,
+    rotate: bool,
+}
 
 #[derive(Component)]
 pub struct CameraController {
@@ -29,6 +44,9 @@ impl Default for CameraController {
     }
 }
 
+// Система выросла на захват указателя; список параметров — свойство ECS-системы,
+// группировать тут нечего. Как и в `process_mesh_build_queue_system`, разрешаем явно.
+#[allow(clippy::too_many_arguments)]
 pub fn camera_control_system(
     mouse_btn: Res<ButtonInput<MouseButton>>,
     mut mouse_motion: MessageReader<MouseMotion>,
@@ -43,6 +61,8 @@ pub fn camera_control_system(
         &GlobalTransform,
     )>,
     window_query: Query<&Window, With<PrimaryWindow>>,
+    pointer: Res<PointerBlocked>,
+    mut drag: Local<DragCapture>,
 ) {
     let Ok((mut transform, mut projection, controller, camera, global_transform)) =
         query.single_mut()
@@ -59,8 +79,24 @@ pub fn camera_control_system(
         mouse_delta += ev.delta;
     }
 
+    // --- Захват перетаскивания ---
+    // Решается на нажатии: панель забирает жест себе, но уже начатый в мире
+    // жест она не обрывает.
+    if mouse_btn.just_pressed(MouseButton::Left) {
+        drag.pan = !pointer.get();
+    }
+    if mouse_btn.just_released(MouseButton::Left) {
+        drag.pan = false;
+    }
+    if mouse_btn.just_pressed(MouseButton::Right) {
+        drag.rotate = !pointer.get();
+    }
+    if mouse_btn.just_released(MouseButton::Right) {
+        drag.rotate = false;
+    }
+
     // --- Панорамирование (drag) ---
-    if mouse_btn.pressed(MouseButton::Left) && mouse_delta != Vec2::ZERO {
+    if drag.pan && mouse_btn.pressed(MouseButton::Left) && mouse_delta != Vec2::ZERO {
         let screen_size = Vec2::new(window.width(), window.height());
         let center = screen_size / 2.0;
         if let Ok(ray_center) = camera.viewport_to_world(global_transform, center) {
@@ -82,7 +118,7 @@ pub fn camera_control_system(
     }
 
     // --- Вращение вокруг цели (правой кнопкой мыши) ---
-    if mouse_btn.pressed(MouseButton::Right) && mouse_delta != Vec2::ZERO {
+    if drag.rotate && mouse_btn.pressed(MouseButton::Right) && mouse_delta != Vec2::ZERO {
         // Вычисляем целевую точку на плоскости y=0 под камерой (в центре экрана)
         let screen_size = Vec2::new(window.width(), window.height());
         let center = screen_size / 2.0;

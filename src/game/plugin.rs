@@ -6,6 +6,7 @@ use crate::generation::WorldGenerationPlugin;
 use crate::rendering::HexRenderingPlugin;
 
 use crate::hex::ChunkMap;
+use crate::pointer::PointerPlugin;
 use crate::simulation::clock::SimClock;
 use crate::simulation::plugin::SimulationPlugin;
 use crate::ui::UIPlugin;
@@ -30,6 +31,7 @@ impl Plugin for GamePlugin {
             // --- Подключаемые плагины ---
             .add_plugins((
                 SettingsPlugin::new("org.bevy.examples.settings"),
+                PointerPlugin,
                 CameraPlugin,
                 WorldGenerationPlugin,
                 HexRenderingPlugin,
