@@ -16,18 +16,6 @@ pub fn setup_camera_on_world_generated(
         // 2. Получаем мировые координаты центра (Vec3 с x, y=0, z)
         let center_world = hex_world_position(center_q, center_r);
 
-        // 3. Параметры камеры из настроек
-        let camera_controller = CameraController {
-            pan_speed: settings.camera.pan_speed,
-            zoom_speed: settings.camera.zoom_speed,
-            min_fov: settings.camera.min_fov,
-            max_fov: settings.camera.max_fov,
-            move_speed: settings.camera.move_speed,
-            rotate_speed: settings.camera.rotate_speed,
-            min_pitch: settings.camera.min_pitch,
-            max_pitch: settings.camera.max_pitch,
-        };
-
         // Параметры камеры
         let camera_height = 400.0; // Высота над картой
         let camera_pitch = -1.0; // Наклон ~57° вниз (чтобы видеть рельеф)
@@ -43,7 +31,7 @@ pub fn setup_camera_on_world_generated(
 
         // Это позволяет видеть высоту гексов (рельеф)
         let camera_rotation = Quat::from_euler(
-            EulerRot::XYZ,
+            EulerRot::YXZ,
             camera_pitch, // Наклон вниз
             0.0,          // Нет поворота по Y
             0.0,          // Нет крена
@@ -67,7 +55,7 @@ pub fn setup_camera_on_world_generated(
                 ..default()
             }),
             camera_transform,
-            camera_controller,
+            CameraController,
             DespawnOnExit(GameSessionState::Active),
         ));
 

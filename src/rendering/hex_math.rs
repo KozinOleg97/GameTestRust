@@ -27,6 +27,25 @@ pub fn chunk_world_translation_with(hex_size: f32, layout: &ChunkLayout, chunk: 
     hex_world_position_with(hex_size, chunk.origin_q(layout), chunk.origin_r(layout))
 }
 
+/// Пересечение луча с горизонтальной плоскостью `y = 0`.
+///
+/// Плоскость — сознательное упрощение: рельеф поднимается до сотни единиц при
+/// гексе меньше двух, и на склонах точка попадания уезжает к соседу. Заменой
+/// будет марш луча по высотам из `ChunkData.elevations`.
+pub fn ray_ground_point(origin: Vec3, direction: Vec3) -> Option<Vec3> {
+    if direction.y.abs() < f32::EPSILON {
+        return None;
+    }
+
+    let distance = -origin.y / direction.y;
+
+    if distance <= 0.0 {
+        return None;
+    }
+
+    Some(origin + direction * distance)
+}
+
 pub fn hex_corners(hex_size: f32) -> [Vec3; 6] {
     let mut corners = [Vec3::ZERO; 6];
 

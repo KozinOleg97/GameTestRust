@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::hex_math::{hex_corners, hex_world_position_with};
+use super::hex_math::{hex_corners, hex_world_position_with, ray_ground_point};
 use crate::game::GameSettings;
 use crate::hex::{
     ChunkData, ChunkLayout, ChunkMap, HexCoordinates, HoveredHex, MapBounds, SelectedHex,
@@ -30,7 +30,7 @@ const CLICK_DRAG_THRESHOLD: f32 = 4.0;
 #[allow(clippy::too_many_arguments)]
 pub fn update_hovered_hex(
     windows: Query<&Window>,
-    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    cameras: Query<(&Camera, &Transform), With<Camera3d>>,
     settings: Res<GameSettings>,
     layout: Res<ChunkLayout>,
     bounds: Res<MapBounds>,
@@ -167,33 +167,28 @@ pub fn draw_hex_selection(
 /// Гекс под курсором, посчитанный по лучу камеры.
 fn cursor_hex(
     windows: &Query<&Window>,
-    cameras: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    cameras: &Query<(&Camera, &Transform), With<Camera3d>>,
     hex_size: f32,
 ) -> Option<HexCoordinates> {
     let window = windows.single().ok()?;
     let cursor = window.cursor_position()?;
-    let (camera, camera_transform) = cameras.single().ok()?;
-    let ray = camera.viewport_to_world(camera_transform, cursor).ok()?;
+    let (camera, transform) = cameras.single().ok()?;
+
+    // Глобальная матрица считается здесь из локальной, а не читается из
+    // `GlobalTransform`: тот пересчитывается в `PostUpdate`, поэтому в `Update`
+    // доступно значение прошлого кадра — и наведение отставало бы от камеры.
+    // Камера — корневая сущность, так что её локальное преобразование и есть мировое.
+    let global = GlobalTransform::from(*transform);
+    let ray = camera.viewport_to_world(&global, cursor).ok()?;
 
     ray_to_hex(ray.origin, *ray.direction, hex_size)
 }
 
-/// Пересечение луча с горизонтальной плоскостью `y = 0`.
+/// Пересечение луча с землёй и перевод точки в гекс.
 ///
-/// Вынесено отдельно, потому что это чистая функция: её можно проверить без
-/// окна, камеры и мира.
+/// Чистая функция: её можно проверить без окна, камеры и мира.
 fn ray_to_hex(origin: Vec3, direction: Vec3, hex_size: f32) -> Option<HexCoordinates> {
-    if direction.y.abs() < f32::EPSILON {
-        return None;
-    }
-
-    let distance = -origin.y / direction.y;
-
-    if distance < 0.0 {
-        return None;
-    }
-
-    let hit = origin + direction * distance;
+    let hit = ray_ground_point(origin, direction)?;
 
     Some(HexCoordinates::from_world_xz(hit.x, hit.z, hex_size))
 }

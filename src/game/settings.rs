@@ -24,6 +24,7 @@ pub struct GameSettings {
 
 impl GameSettings {
     pub fn validate_all(&mut self) {
+        self.camera.validate();
         self.generation.validate();
         self.rendering.validate();
         self.simulation.validate();
@@ -191,10 +192,19 @@ impl Default for DebugSettings {
 #[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct CameraSettings {
+    /// Во сколько раз движение мыши повторяется камерой. При 1.0 точка, за
+    /// которую взялись курсором, остаётся под ним в точности.
     pub pan_speed: f32,
+
+    /// Доля высоты за один щелчок колеса: 0.05 — пять процентов.
     pub zoom_speed: f32,
-    pub min_fov: f32,
-    pub max_fov: f32,
+
+    /// Ниже этой высоты камера не опускается при приближении.
+    pub zoom_min_altitude: f32,
+
+    /// Выше этой высоты камера не поднимается при отдалении.
+    pub zoom_max_altitude: f32,
+
     pub move_speed: f32,
     pub rotate_speed: f32,
     pub min_pitch: f32,
@@ -206,12 +216,50 @@ impl Default for CameraSettings {
         Self {
             pan_speed: 1.0,
             zoom_speed: 0.05,
-            min_fov: 1.0,
-            max_fov: 150.0,
+            zoom_min_altitude: 60.0,
+            zoom_max_altitude: 1200.0,
             move_speed: 500.0,
             rotate_speed: 0.005,
             min_pitch: -90.0,
             max_pitch: 90.0,
+        }
+    }
+}
+
+impl CameraSettings {
+    pub fn validate(&mut self) {
+        if !self.pan_speed.is_finite() || self.pan_speed <= 0.0 {
+            warn!(
+                "CameraSettings.pan_speed was {}, forcing to 1.0",
+                self.pan_speed
+            );
+            self.pan_speed = 1.0;
+        }
+
+        if !self.zoom_speed.is_finite() || self.zoom_speed <= 0.0 {
+            warn!(
+                "CameraSettings.zoom_speed was {}, forcing to 0.05",
+                self.zoom_speed
+            );
+            self.zoom_speed = 0.05;
+        }
+
+        if !self.zoom_min_altitude.is_finite() || self.zoom_min_altitude <= 0.0 {
+            warn!(
+                "CameraSettings.zoom_min_altitude was {}, forcing to 60.0",
+                self.zoom_min_altitude
+            );
+            self.zoom_min_altitude = 60.0;
+        }
+
+        if !self.zoom_max_altitude.is_finite() || self.zoom_max_altitude <= self.zoom_min_altitude {
+            warn!(
+                "CameraSettings.zoom_max_altitude was {} at min altitude {}, forcing to {}",
+                self.zoom_max_altitude,
+                self.zoom_min_altitude,
+                (self.zoom_min_altitude + 1.0).max(1200.0)
+            );
+            self.zoom_max_altitude = (self.zoom_min_altitude + 1.0).max(1200.0);
         }
     }
 }
