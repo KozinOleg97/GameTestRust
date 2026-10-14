@@ -2,6 +2,8 @@ use crate::game::GameSessionState;
 use crate::ui::main_menu::buttons::MainMenuAction;
 use crate::ui::widgets::{spawn_menu_root, spawn_text_button, spawn_title};
 use bevy::prelude::*;
+use bevy::ui::Pressed;
+use bevy::ui_widgets::Button;
 use bevy_settings::SaveSettingsSync;
 
 fn spawn_main_menu(mut commands: Commands) {
@@ -25,26 +27,21 @@ fn spawn_main_menu(mut commands: Commands) {
 
 /// Централизованная обработка всех нажатий кнопок главного меню
 fn main_menu_action(
-    mut interaction_query: Query<
-        (&Interaction, &MainMenuAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    interaction_query: Query<&MainMenuAction, (With<Button>, Added<Pressed>)>,
     mut next_session_state: ResMut<NextState<GameSessionState>>,
     // mut next_play_state: ResMut<NextState<PlayState>>,
     mut commands: Commands,
 ) {
-    for (interaction, action) in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
-            match action {
-                MainMenuAction::StartGame => {
-                    next_session_state.set(GameSessionState::Loading);
-                    // next_play_state.set(PlayState::Playing);
-                    info!("Staring game session");
-                }
-                MainMenuAction::SaveSettings => {
-                    commands.queue(SaveSettingsSync::Always);
-                    info!("Settings saved");
-                }
+    for action in &interaction_query {
+        match action {
+            MainMenuAction::StartGame => {
+                next_session_state.set(GameSessionState::Loading);
+                // next_play_state.set(PlayState::Playing);
+                info!("Staring game session");
+            }
+            MainMenuAction::SaveSettings => {
+                commands.queue(SaveSettingsSync::Always);
+                info!("Settings saved");
             }
         }
     }

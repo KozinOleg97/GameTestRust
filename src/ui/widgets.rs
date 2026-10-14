@@ -1,5 +1,7 @@
 use crate::ui::style::*;
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui_widgets::Button;
 
 /// Создает корневой узел меню на весь экран и автоматически удаляет его
 /// при выходе из указанного состояния (работает как с обычными States, так и с SubStates)
@@ -50,6 +52,7 @@ pub fn spawn_text_button<T: Component>(
     parent
         .spawn((
             Button,
+            Hovered(false),
             action, // Привязываем конкретный экшен
             Node {
                 width: Val::Px(BUTTON_WIDTH),

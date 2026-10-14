@@ -2,6 +2,8 @@ use crate::game::{GameSessionState, PlayState};
 use crate::ui::pause_menu::buttons::PauseMenuAction;
 use crate::ui::widgets::{spawn_menu_root, spawn_text_button, spawn_title};
 use bevy::prelude::*;
+use bevy::ui::Pressed;
+use bevy::ui_widgets::Button;
 
 #[derive(Component)]
 pub struct PauseMenuUI;
@@ -19,23 +21,21 @@ fn spawn_pause_menu(mut commands: Commands) {
 }
 
 fn pause_menu_action(
-    mut query: Query<(&Interaction, &PauseMenuAction), (Changed<Interaction>, With<Button>)>,
+    query: Query<&PauseMenuAction, (With<Button>, Added<Pressed>)>,
     mut next_session_state: ResMut<NextState<GameSessionState>>,
     mut next_play_state: ResMut<NextState<PlayState>>,
 ) {
-    for (interaction, action) in &mut query {
-        if *interaction == Interaction::Pressed {
-            match action {
-                PauseMenuAction::Resume => {
-                    next_play_state.set(PlayState::Playing);
-                }
-                PauseMenuAction::OpenSettings => {
-                    info!("Open settings (not implemented)");
-                    // Здесь можно отправить событие для открытия окна настроек
-                }
-                PauseMenuAction::QuitToMainMenu => {
-                    next_session_state.set(GameSessionState::MainMenu);
-                }
+    for action in &query {
+        match action {
+            PauseMenuAction::Resume => {
+                next_play_state.set(PlayState::Playing);
+            }
+            PauseMenuAction::OpenSettings => {
+                info!("Open settings (not implemented)");
+                // Здесь можно отправить событие для открытия окна настроек
+            }
+            PauseMenuAction::QuitToMainMenu => {
+                next_session_state.set(GameSessionState::MainMenu);
             }
         }
     }

@@ -1,5 +1,8 @@
 use bevy::ecs::system::ParamSet;
+use bevy::picking::hover::Hovered;
 use bevy::prelude::*;
+use bevy::ui::Pressed;
+use bevy::ui_widgets::Button;
 
 use crate::game::GameSessionState;
 use crate::simulation::{SimClock, TimeJumpProgress, TimeJumpRequest, TimeJumpState};
@@ -117,6 +120,7 @@ fn spawn_time_button(parent: &mut ChildSpawnerCommands, label: &str, action: Tim
     parent
         .spawn((
             Button,
+            Hovered(false),
             action,
             Node {
                 width: Val::Px(42.0),
@@ -177,18 +181,11 @@ fn update_time_display(
 fn handle_time_control_buttons(
     mut clock: ResMut<SimClock>,
     mut jump_request: ResMut<TimeJumpRequest>,
-    interaction_query: Query<
-        (&Interaction, &TimeControlAction),
-        (Changed<Interaction>, With<Button>),
-    >,
+    interaction_query: Query<&TimeControlAction, (With<Button>, Added<Pressed>)>,
 ) {
     let tick_duration = clock.tick_duration_safe();
 
-    for (interaction, action) in interaction_query.iter() {
-        if *interaction != Interaction::Pressed {
-            continue;
-        }
-
+    if let Some(action) = interaction_query.iter().next() {
         match action {
             TimeControlAction::PauseToggle => {
                 clock.paused = !clock.paused;
@@ -221,8 +218,6 @@ fn handle_time_control_buttons(
                 jump_request.0 += ticks.max(1);
             }
         }
-
-        break;
     }
 }
 
