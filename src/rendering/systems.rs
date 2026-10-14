@@ -5,7 +5,7 @@ use bevy::tasks::{AsyncComputeTaskPool, Task};
 use futures_lite::future;
 
 use crate::game::GameSettings;
-use crate::hex::{ChunkData, ChunkLayout, ChunkMap, HexChunk, MapBounds, HEX_DIRECTIONS};
+use crate::hex::{ChunkData, ChunkLayout, ChunkMap, HEX_DIRECTIONS, HexChunk, MapBounds};
 
 use super::mesh_builder::build_chunk_mesh;
 

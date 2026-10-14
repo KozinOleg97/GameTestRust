@@ -1,7 +1,5 @@
 use bevy::prelude::*;
-use bevy_settings::{
-    ReflectSettingsGroup, SaveSettingsDeferred, SaveSettingsSync, SettingsGroup, SettingsPlugin,
-};
+use bevy_settings::{ReflectSettingsGroup, SettingsGroup};
 
 use crate::hex::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 
@@ -11,6 +9,7 @@ use crate::hex::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 
 #[derive(Resource, SettingsGroup, Reflect)]
 #[reflect(Resource, SettingsGroup, Default)]
+#[derive(Default)]
 pub struct GameSettings {
     pub camera: CameraSettings,
     pub window: WindowSettings,
@@ -21,22 +20,6 @@ pub struct GameSettings {
     pub rendering: RenderingSettings,
     pub debug: DebugSettings,
     pub simulation: SimulationSettings,
-}
-
-impl Default for GameSettings {
-    fn default() -> Self {
-        Self {
-            camera: CameraSettings::default(),
-            window: WindowSettings::default(),
-            performance_overlay: PerformanceOverlaySettings::default(),
-            audio: AudioSettings::default(),
-
-            generation: GenerationSettings::default(),
-            rendering: RenderingSettings::default(),
-            debug: DebugSettings::default(),
-            simulation: SimulationSettings::default(),
-        }
-    }
 }
 
 impl GameSettings {

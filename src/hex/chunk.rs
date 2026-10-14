@@ -7,7 +7,7 @@ pub const MIN_CHUNK_SIZE: usize = 8;
 pub const MAX_CHUNK_SIZE: usize = 128;
 
 pub fn is_valid_chunk_size(size: usize) -> bool {
-    size >= MIN_CHUNK_SIZE && size <= MAX_CHUNK_SIZE && size.is_power_of_two()
+    (MIN_CHUNK_SIZE..=MAX_CHUNK_SIZE).contains(&size) && size.is_power_of_two()
 }
 
 pub fn normalize_chunk_size(size: usize) -> usize {

@@ -11,6 +11,13 @@ uuid = { version = "1.23", features = ["v4"] }
 futures-lite = "2.6.1"
 
 
+[features]
+# Только для разработки: линковать Bevy как динамическую библиотеку — сильно
+# ускоряет инкрементальную пересборку. В релизных сборках не включать.
+# Использование: cargo run --features dynamic_linking
+dynamic_linking = ["bevy/dynamic_linking"]
+
+
 [profile.dev]
 # Keep fast compilation times during development.
 opt-level = 0          # No optimizations – fastest compile times.

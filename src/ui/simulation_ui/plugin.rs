@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::ecs::system::ParamSet;
+use bevy::prelude::*;
 
 use crate::game::GameSessionState;
 use crate::simulation::{SimClock, TimeJumpProgress, TimeJumpRequest, TimeJumpState};
@@ -113,11 +113,7 @@ fn spawn_simulation_ui(mut commands: Commands) {
         });
 }
 
-fn spawn_time_button(
-    parent: &mut ChildSpawnerCommands,
-    label: &str,
-    action: TimeControlAction,
-) {
+fn spawn_time_button(parent: &mut ChildSpawnerCommands, label: &str, action: TimeControlAction) {
     parent
         .spawn((
             Button,
@@ -131,11 +127,7 @@ fn spawn_time_button(
             },
             BackgroundColor(NORMAL_BUTTON),
         ))
-        .with_child((
-            Text::new(label),
-            ui_font(16.0),
-            TextColor(TEXT_COLOR),
-        ));
+        .with_child((Text::new(label), ui_font(16.0), TextColor(TEXT_COLOR)));
 }
 
 fn update_time_display(

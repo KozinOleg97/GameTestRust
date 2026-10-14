@@ -1,8 +1,7 @@
 use crate::camera::controller::CameraController;
-use crate::game::{GameSettings, GameSessionState, WorldGeneratedEvent};
+use crate::game::{GameSessionState, GameSettings, WorldGeneratedEvent};
 use crate::rendering::hex_world_position;
 use bevy::prelude::*;
-
 
 pub fn setup_camera_on_world_generated(
     mut commands: Commands,
@@ -30,30 +29,29 @@ pub fn setup_camera_on_world_generated(
         };
 
         // Параметры камеры
-        let camera_height = 400.0;   // Высота над картой
-        let camera_pitch = -1.0;     // Наклон ~57° вниз (чтобы видеть рельеф)
-
+        let camera_height = 400.0; // Высота над картой
+        let camera_pitch = -1.0; // Наклон ~57° вниз (чтобы видеть рельеф)
 
         // X = позиция центра карты по X
         // Y = camera_height (ВВЕРХ!)
         // Z = позиция центра карты по Z
         let camera_position = Vec3::new(
-            center_world.x,     // X из центра карты
-            camera_height,       // Y = высота над картой
-            center_world.z,      // Z из центра карты
+            center_world.x, // X из центра карты
+            camera_height,  // Y = высота над картой
+            center_world.z, // Z из центра карты
         );
-
 
         // Это позволяет видеть высоту гексов (рельеф)
         let camera_rotation = Quat::from_euler(
             EulerRot::XYZ,
-            camera_pitch,  // Наклон вниз
-            0.0,            // Нет поворота по Y
-            0.0,            // Нет крена
-        ).normalize();
+            camera_pitch, // Наклон вниз
+            0.0,          // Нет поворота по Y
+            0.0,          // Нет крена
+        )
+        .normalize();
 
-        let camera_transform = Transform::from_translation(camera_position)
-            .with_rotation(camera_rotation);
+        let camera_transform =
+            Transform::from_translation(camera_position).with_rotation(camera_rotation);
 
         commands.spawn((
             Camera3d::default(),
@@ -76,10 +74,11 @@ pub fn setup_camera_on_world_generated(
         // Свет под углом для создания объёма (а не строго сверху)
         let light_rotation = Quat::from_euler(
             EulerRot::XYZ,
-            -0.8,  // ~45° наклон
-            0.5,   // Лёгкий поворот
+            -0.8, // ~45° наклон
+            0.5,  // Лёгкий поворот
             0.0,
-        ).normalize();
+        )
+        .normalize();
 
         commands.spawn((
             DirectionalLight {

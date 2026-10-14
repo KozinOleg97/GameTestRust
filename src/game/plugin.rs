@@ -1,5 +1,3 @@
-use bevy::log;
-
 use crate::camera::CameraPlugin;
 use crate::game::{GameSessionState, PlayState, WorldGeneratedEvent};
 use crate::generation::WorldGenerationPlugin;
@@ -67,7 +65,6 @@ pub fn handle_pause(
                 sim_clock.paused = false;
                 info!("Game is playing");
             }
-            _ => {}
         }
     }
 }

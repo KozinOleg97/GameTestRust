@@ -101,38 +101,35 @@ pub fn camera_control_system(
             None
         };
 
-        match target_point {
-            Some(target) => {
-                // Вычисляем углы вращения
-                let yaw_delta = -mouse_delta.x * controller.rotate_speed;
-                let pitch_delta = -mouse_delta.y * controller.rotate_speed;
+        if let Some(target) = target_point {
+            // Вычисляем углы вращения
+            let yaw_delta = -mouse_delta.x * controller.rotate_speed;
+            let pitch_delta = -mouse_delta.y * controller.rotate_speed;
 
-                // Текущие углы (из кватерниона) можно вычислить, но проще вращать напрямую
-                // Создаём кватернионы вращения
-                let yaw_rot = Quat::from_axis_angle(Vec3::Y, yaw_delta);
-                let pitch_rot = Quat::from_axis_angle(*transform.local_x(), pitch_delta);
+            // Текущие углы (из кватерниона) можно вычислить, но проще вращать напрямую
+            // Создаём кватернионы вращения
+            let yaw_rot = Quat::from_axis_angle(Vec3::Y, yaw_delta);
+            let pitch_rot = Quat::from_axis_angle(*transform.local_x(), pitch_delta);
 
-                // Комбинируем вращения: сначала рыскание (yaw) вокруг мировой оси Y,
-                // затем тангаж (pitch) вокруг локальной оси X камеры
-                let combined_rot = yaw_rot * pitch_rot;
+            // Комбинируем вращения: сначала рыскание (yaw) вокруг мировой оси Y,
+            // затем тангаж (pitch) вокруг локальной оси X камеры
+            let combined_rot = yaw_rot * pitch_rot;
 
-                // Применяем вращение вокруг целевой точки
-                transform.rotate_around(target, combined_rot);
+            // Применяем вращение вокруг целевой точки
+            transform.rotate_around(target, combined_rot);
 
-                // Ограничиваем угол наклона (pitch) чтобы камера не переворачивалась
-                let (_, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-                let pitch_deg = pitch.to_degrees();
-                let clamped_pitch = pitch_deg.clamp(controller.min_pitch, controller.max_pitch);
-                if pitch_deg != clamped_pitch {
-                    // Корректируем вращение до допустимого угла
-                    let correction = Quat::from_axis_angle(
-                        *transform.local_x(),
-                        (clamped_pitch - pitch_deg).to_radians(),
-                    );
-                    transform.rotate_around(target, correction);
-                }
+            // Ограничиваем угол наклона (pitch) чтобы камера не переворачивалась
+            let (_, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
+            let pitch_deg = pitch.to_degrees();
+            let clamped_pitch = pitch_deg.clamp(controller.min_pitch, controller.max_pitch);
+            if pitch_deg != clamped_pitch {
+                // Корректируем вращение до допустимого угла
+                let correction = Quat::from_axis_angle(
+                    *transform.local_x(),
+                    (clamped_pitch - pitch_deg).to_radians(),
+                );
+                transform.rotate_around(target, correction);
             }
-            None => {}
         }
     }
 
@@ -141,17 +138,14 @@ pub fn camera_control_system(
     for ev in scroll.read() {
         zoom_delta += ev.y;
     }
-    if zoom_delta != 0.0 {
-        match *projection {
-            Projection::Perspective(ref mut persp) => {
-                let new_fov = (persp.fov - zoom_delta * controller.zoom_speed).clamp(
-                    controller.min_fov.to_radians(),
-                    controller.max_fov.to_radians(),
-                );
-                persp.fov = new_fov;
-            }
-            _ => {}
-        }
+    if zoom_delta != 0.0
+        && let Projection::Perspective(ref mut persp) = *projection
+    {
+        let new_fov = (persp.fov - zoom_delta * controller.zoom_speed).clamp(
+            controller.min_fov.to_radians(),
+            controller.max_fov.to_radians(),
+        );
+        persp.fov = new_fov;
     }
 
     // --- Перемещение WASD ---

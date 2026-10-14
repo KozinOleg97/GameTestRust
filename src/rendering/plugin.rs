@@ -2,9 +2,9 @@ use bevy::prelude::*;
 
 use super::debug::debug_draw_chunk_bounds;
 use super::systems::{
-    apply_mesh_tasks_system, clear_mesh_queue, ensure_mesh_generation, process_mesh_build_queue_system,
-    queue_dirty_chunks_system, setup_terrain_material, MeshBuildQueue,
-    TerrainMaterial,
+    MeshBuildQueue, TerrainMaterial, apply_mesh_tasks_system, clear_mesh_queue,
+    ensure_mesh_generation, process_mesh_build_queue_system, queue_dirty_chunks_system,
+    setup_terrain_material,
 };
 use crate::game::GameSessionState;
 use crate::hex::{ChunkLayout, ChunkMap, MapBounds};

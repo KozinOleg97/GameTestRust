@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::{GameSessionState, GameSettings, PlayState};
 
-use super::clock::{update_sim_clock, SimClock, TimeJumpRequest};
+use super::clock::{SimClock, TimeJumpRequest, update_sim_clock};
 use super::debug::debug_time_controls;
 
 /// Состояние экрана промотки времени.
@@ -182,7 +182,7 @@ fn apply_location_updates(
         With<SimulationUpdateTag>,
     >,
 ) {
-    for (entity, mut location, lod, mut last_update) in query.iter_mut() {
+    for (entity, location, lod, mut last_update) in query.iter_mut() {
         let dt_ticks = clock.current_tick.saturating_sub(last_update.0);
         let dt_seconds = dt_ticks as f64 * clock.tick_duration_safe();
 
@@ -206,7 +206,7 @@ fn apply_npc_updates(
         (With<SimulationUpdateTag>, Without<Location>),
     >,
 ) {
-    for (entity, mut npc, lod, mut last_update) in query.iter_mut() {
+    for (entity, npc, lod, mut last_update) in query.iter_mut() {
         let dt_ticks = clock.current_tick.saturating_sub(last_update.0);
         let dt_seconds = dt_ticks as f64 * clock.tick_duration_safe();
 

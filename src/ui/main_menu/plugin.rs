@@ -1,14 +1,19 @@
-use crate::game::{GameSessionState, PlayState};
+use crate::game::GameSessionState;
 use crate::ui::main_menu::buttons::MainMenuAction;
-use crate::ui::style::*;
 use crate::ui::widgets::{spawn_menu_root, spawn_text_button, spawn_title};
 use bevy::prelude::*;
 use bevy_settings::SaveSettingsSync;
-use std::thread::spawn;
 
 fn spawn_main_menu(mut commands: Commands) {
     info!("Spawned main menu");
-    commands.spawn((Camera2d, Camera{order: 10, ..default()}, DespawnOnExit(GameSessionState::MainMenu)));
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 10,
+            ..default()
+        },
+        DespawnOnExit(GameSessionState::MainMenu),
+    ));
 
     spawn_menu_root(&mut commands, GameSessionState::MainMenu, |parent| {
         spawn_title(parent, "Hex Game");

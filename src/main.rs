@@ -7,8 +7,8 @@ mod game;
 mod generation;
 mod hex;
 mod rendering;
-mod ui;
 mod simulation;
+mod ui;
 
 fn main() {
     App::new()

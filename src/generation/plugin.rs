@@ -1,9 +1,9 @@
 use crate::game::{
-    validate_game_settings, GameSessionState, GameSettings, PlayState, WorldGeneratedEvent,
+    GameSessionState, GameSettings, PlayState, WorldGeneratedEvent, validate_game_settings,
 };
 use crate::generation::ProceduralWorldGenerator;
 use crate::hex::{ChunkData, ChunkLayout, ChunkMap, HexChunk, MapBounds};
-use crate::rendering::{hex_world_position_with, MeshGeneration};
+use crate::rendering::{MeshGeneration, hex_world_position_with};
 use crate::ui::widgets::{spawn_menu_root, spawn_title};
 
 use bevy::prelude::*;

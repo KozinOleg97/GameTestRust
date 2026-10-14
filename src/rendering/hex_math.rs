@@ -6,7 +6,7 @@ pub const DEFAULT_HEX_SIZE: f32 = 1.0;
 pub const DEFAULT_ELEVATION_STEP: f32 = 0.9;
 pub const DEFAULT_SKIRT_HEIGHT: f32 = -10.0;
 
-pub const SQRT_3: f32 = 1.7320508075688772;
+pub const SQRT_3: f32 = 1.732_050_8;
 
 pub fn hex_world_position(global_q: i32, global_r: i32) -> Vec3 {
     hex_world_position_with(DEFAULT_HEX_SIZE, global_q, global_r)

@@ -1,5 +1,5 @@
 use crate::generation::PerlinNoise;
-use crate::hex::{ChunkData, ChunkLayout, HexChunk, HexType, MapBounds, DEFAULT_CHUNK_SIZE};
+use crate::hex::{ChunkData, ChunkLayout, DEFAULT_CHUNK_SIZE, HexChunk, HexType, MapBounds};
 
 use bevy::prelude::*;
 
@@ -163,10 +163,10 @@ impl ProceduralWorldGenerator {
                 let global_r = origin_r + local_r as i32;
 
                 // Если карта конечная, пропускаем гексы за её пределами.
-                if let Some(bounds) = bounds {
-                    if !bounds.contains_hex(global_q, global_r) {
-                        continue;
-                    }
+                if let Some(bounds) = bounds
+                    && !bounds.contains_hex(global_q, global_r)
+                {
+                    continue;
                 }
 
                 let (biome, elevation) = self.determine_hex(global_q, global_r);

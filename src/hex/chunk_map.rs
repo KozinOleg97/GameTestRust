@@ -110,7 +110,7 @@ where
     let (local_q, local_r) = layout.local_coords(global_q, global_r);
     let idx = chunk_data.index(local_q, local_r);
 
-    modifier(&mut *chunk_data, idx);
+    modifier(&mut chunk_data, idx);
 
     true
 }

@@ -1,6 +1,5 @@
 use crate::game::{GameSessionState, PlayState};
 use crate::ui::pause_menu::buttons::PauseMenuAction;
-use crate::ui::style::*;
 use crate::ui::widgets::{spawn_menu_root, spawn_text_button, spawn_title};
 use bevy::prelude::*;
 

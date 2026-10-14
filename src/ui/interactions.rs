@@ -1,6 +1,6 @@
+use crate::ui::style::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON};
 use bevy::app::{App, Plugin, Update};
 use bevy::prelude::{BackgroundColor, Button, Changed, Interaction, Query, With};
-use crate::ui::style::{HOVERED_BUTTON, NORMAL_BUTTON, PRESSED_BUTTON};
 
 pub struct InteractionPlugin;
 
@@ -22,6 +22,7 @@ fn button_system(
             Interaction::Pressed => PRESSED_BUTTON,
             Interaction::Hovered => HOVERED_BUTTON,
             Interaction::None => NORMAL_BUTTON,
-        }.into();
+        }
+        .into();
     }
 }

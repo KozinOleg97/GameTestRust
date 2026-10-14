@@ -3,9 +3,9 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 
 use crate::game::settings::RenderingSettings;
-use crate::hex::{ChunkData, ChunkLayout, HexChunk, MapBounds, HEX_DIRECTIONS};
+use crate::hex::{ChunkData, ChunkLayout, HEX_DIRECTIONS, HexChunk, MapBounds};
 
-use super::hex_math::{hex_corners, SHARED_CORNERS};
+use super::hex_math::{SHARED_CORNERS, hex_corners};
 
 enum NeighborHeight {
     Loaded(i8),
@@ -182,7 +182,7 @@ pub fn build_chunk_mesh(
     Some(mesh)
 }
 
-fn hex_center_local(layout: &ChunkLayout, hex_size: f32, local_q: usize, local_r: usize) -> Vec3 {
+fn hex_center_local(_layout: &ChunkLayout, hex_size: f32, local_q: usize, local_r: usize) -> Vec3 {
     let q = local_q as f32;
     let r = local_r as f32;
 
@@ -219,16 +219,16 @@ fn get_neighbor_height(
         .iter()
         .position(|d| d.q() == chunk_offset_q && d.r() == chunk_offset_r);
 
-    if let Some(idx) = neighbor_idx {
-        if let Some(neighbor_data) = &neighbors[idx] {
-            let local_q = (local_nq & layout.mask) as usize;
-            let local_r = (local_nr & layout.mask) as usize;
+    if let Some(idx) = neighbor_idx
+        && let Some(neighbor_data) = &neighbors[idx]
+    {
+        let local_q = (local_nq & layout.mask) as usize;
+        let local_r = (local_nr & layout.mask) as usize;
 
-            let neighbor_index = layout.index(local_q, local_r);
+        let neighbor_index = layout.index(local_q, local_r);
 
-            if neighbor_index < neighbor_data.len() {
-                return NeighborHeight::Loaded(neighbor_data[neighbor_index]);
-            }
+        if neighbor_index < neighbor_data.len() {
+            return NeighborHeight::Loaded(neighbor_data[neighbor_index]);
         }
     }
 
