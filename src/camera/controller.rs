@@ -11,7 +11,28 @@ use bevy::window::PrimaryWindow;
 /// система читает их каждый кадр. Копия в компоненте означала бы, что правка
 /// настроек не действует до следующей генерации мира.
 #[derive(Component)]
+#[require(CameraOrbit)]
 pub struct CameraController;
+
+/// Ориентация камеры: два угла вместо кватерниона.
+///
+/// Хранить углы явно — единственный способ ограничить тангаж точно. Раньше угол
+/// вынимался из кватерниона, подрезался и возвращался корректирующим доворотом:
+/// это приближение, которое на повторных подрезках накапливает ошибку.
+///
+/// Углы в радианах; `yaw` — вокруг мировой оси Y, `pitch` — вокруг локальной X.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct CameraOrbit {
+    pub yaw: f32,
+    pub pitch: f32,
+}
+
+impl CameraOrbit {
+    /// Поворот, соответствующий текущим углам.
+    pub fn rotation(&self) -> Quat {
+        Quat::from_euler(EulerRot::YXZ, self.yaw, self.pitch, 0.0)
+    }
+}
 
 /// Точка, за которую держится перетаскивание.
 ///
@@ -80,11 +101,11 @@ pub fn camera_control_system(
     keyboard: Res<ButtonInput<KeyCode>>,
     settings: Res<GameSettings>,
     pointer: Res<PointerBlocked>,
-    mut query: Query<(&mut Transform, &Camera), With<CameraController>>,
+    mut query: Query<(&mut Transform, &Camera, &mut CameraOrbit), With<CameraController>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mut drag: Local<CameraDrag>,
 ) {
-    let Ok((mut transform, camera)) = query.single_mut() else {
+    let Ok((mut transform, camera, mut orbit)) = query.single_mut() else {
         return;
     };
     let Ok(window) = window_query.single() else {
@@ -145,24 +166,22 @@ pub fn camera_control_system(
         let target = anchor.ground_point;
         let rotate_speed = settings.camera.rotate_speed;
 
-        let yaw_rot = Quat::from_axis_angle(Vec3::Y, -mouse_delta.x * rotate_speed);
-        let pitch_rot = Quat::from_axis_angle(*transform.local_x(), -mouse_delta.y * rotate_speed);
+        let before = orbit.rotation();
 
-        // Сначала тангаж вокруг локальной оси, затем рыскание вокруг мировой.
-        transform.rotate_around(target, yaw_rot * pitch_rot);
+        orbit.yaw -= mouse_delta.x * rotate_speed;
+        // Тангаж подрезается по углам из настроек — точно, без доворотов.
+        orbit.pitch = (orbit.pitch - mouse_delta.y * rotate_speed).clamp(
+            settings.camera.min_pitch.to_radians(),
+            settings.camera.max_pitch.to_radians(),
+        );
 
-        // Ограничение тангажа остаётся приближением: корректирующий доворот
-        // тянет угол к границе, но не выставляет его точно. Точное решение —
-        // хранить yaw и pitch отдельно и собирать поворот заново.
-        let (_, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-        let pitch_deg = pitch.to_degrees();
-        let clamped = pitch_deg.clamp(settings.camera.min_pitch, settings.camera.max_pitch);
+        let after = orbit.rotation();
 
-        if pitch_deg != clamped {
-            let correction =
-                Quat::from_axis_angle(*transform.local_x(), (clamped - pitch_deg).to_radians());
-            transform.rotate_around(target, correction);
-        }
+        // Позиция поворачивается ровно настолько, насколько повернулся взгляд:
+        // разница кватернионов не зависит от порядка углов.
+        let delta = after * before.inverse();
+        transform.translation = target + delta * (transform.translation - target);
+        transform.rotation = after;
     }
 
     // --- Зум: отъезд камерой вдоль взгляда ---
@@ -191,24 +210,35 @@ pub fn camera_control_system(
     }
 
     // --- Перемещение WASD ---
-    // Пока по мировым осям: после рыскания «вперёд» может не совпадать с экраном.
-    let mut move_delta = Vec3::ZERO;
+    // Относительно камеры, а не мира: после рыскания «вперёд» должно оставаться
+    // тем, что впереди на экране. Движение идёт по земле, высота не меняется.
+    let mut move_input = Vec2::ZERO;
     if keyboard.pressed(KeyCode::KeyW) {
-        move_delta.z -= 1.0;
+        move_input.y += 1.0;
     }
     if keyboard.pressed(KeyCode::KeyS) {
-        move_delta.z += 1.0;
-    }
-    if keyboard.pressed(KeyCode::KeyA) {
-        move_delta.x -= 1.0;
+        move_input.y -= 1.0;
     }
     if keyboard.pressed(KeyCode::KeyD) {
-        move_delta.x += 1.0;
+        move_input.x += 1.0;
     }
-    if move_delta != Vec3::ZERO {
-        move_delta = move_delta.normalize_or_zero();
+    if keyboard.pressed(KeyCode::KeyA) {
+        move_input.x -= 1.0;
+    }
+
+    if move_input != Vec2::ZERO {
+        let forward = *transform.forward();
+        let right = *transform.right();
+
+        let forward_flat = Vec3::new(forward.x, 0.0, forward.z).normalize_or_zero();
+        let right_flat = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
+
+        let direction =
+            (right_flat * move_input.x + forward_flat * move_input.y).normalize_or_zero();
+
+        // Если камера смотрит строго вниз, «вперёд» вырождается — тогда работает
+        // только боковое направление, и это честнее, чем дёргать камеру наугад.
         let speed = settings.camera.move_speed * time.delta_secs();
-        transform.translation.x += move_delta.x * speed;
-        transform.translation.z += move_delta.z * speed;
+        transform.translation += direction * speed;
     }
 }
