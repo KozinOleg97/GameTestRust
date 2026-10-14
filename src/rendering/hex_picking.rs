@@ -1,0 +1,187 @@
+use bevy::prelude::*;
+
+use super::hex_math::{hex_corners, hex_world_position_with};
+use crate::game::GameSettings;
+use crate::hex::{
+    ChunkData, ChunkLayout, ChunkMap, HexCoordinates, HoveredHex, MapBounds, SelectedHex,
+};
+
+/// Цвет контура наведённого гекса.
+const HOVERED_OUTLINE: Color = Color::srgb(1.0, 0.85, 0.2);
+
+/// Цвет контура выделенного гекса.
+const SELECTED_OUTLINE: Color = Color::srgb(0.3, 0.9, 0.4);
+
+/// Гекс под курсором.
+///
+/// Луч берётся тем же способом, что и в управлении камерой: `viewport_to_world`
+/// и пересечение с плоскостью `y = 0`. Это намеренно простое приближение — на
+/// возвышенностях оно промахивается, и первое, что здесь стоит заменить, это
+/// марш луча по высотам из `ChunkData.elevations`.
+pub fn update_hovered_hex(
+    windows: Query<&Window>,
+    cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    settings: Res<GameSettings>,
+    layout: Res<ChunkLayout>,
+    bounds: Res<MapBounds>,
+    chunk_map: Res<ChunkMap>,
+    mut hovered: ResMut<HoveredHex>,
+) {
+    let candidate = cursor_hex(&windows, &cameras, settings.rendering.hex_size);
+
+    // За пределами карты и в незагруженных чанках наведения нет: панель не должна
+    // показывать гекс, которого ещё не существует.
+    hovered.0 = candidate.filter(|coords| {
+        bounds.contains_hex(coords.q(), coords.r())
+            && chunk_map
+                .get_chunk_entity_by_hex(&layout, coords.q(), coords.r())
+                .is_some()
+    });
+}
+
+/// Закрепление выбора кликом.
+///
+/// Это не запрос интерфейса, а взаимодействие с миром, поэтому живёт в домене:
+/// UI здесь ни при чём, он только показывает результат.
+pub fn select_hex_on_click(
+    buttons: Res<ButtonInput<MouseButton>>,
+    hovered: Res<HoveredHex>,
+    mut selected: ResMut<SelectedHex>,
+) {
+    if !buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    if selected.0 != hovered.0 {
+        selected.0 = hovered.0;
+    }
+}
+
+/// Контуры наведённого и выделенного гекса.
+pub fn draw_hex_selection(
+    mut gizmos: Gizmos,
+    hovered: Res<HoveredHex>,
+    selected: Res<SelectedHex>,
+    settings: Res<GameSettings>,
+    layout: Res<ChunkLayout>,
+    chunk_map: Res<ChunkMap>,
+    chunks: Query<&ChunkData>,
+) {
+    let hex_size = settings.rendering.hex_size;
+    let elevation_step = settings.rendering.elevation_step;
+
+    if let Some(coords) = hovered.0
+        && selected.0 != Some(coords)
+    {
+        draw_hex_outline(
+            &mut gizmos,
+            coords,
+            hex_size,
+            elevation_step,
+            &layout,
+            &chunk_map,
+            &chunks,
+            HOVERED_OUTLINE,
+        );
+    }
+
+    if let Some(coords) = selected.0 {
+        draw_hex_outline(
+            &mut gizmos,
+            coords,
+            hex_size,
+            elevation_step,
+            &layout,
+            &chunk_map,
+            &chunks,
+            SELECTED_OUTLINE,
+        );
+    }
+}
+
+/// Гекс под курсором, посчитанный по лучу камеры.
+fn cursor_hex(
+    windows: &Query<&Window>,
+    cameras: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    hex_size: f32,
+) -> Option<HexCoordinates> {
+    let window = windows.single().ok()?;
+    let cursor = window.cursor_position()?;
+    let (camera, camera_transform) = cameras.single().ok()?;
+    let ray = camera.viewport_to_world(camera_transform, cursor).ok()?;
+
+    ray_to_hex(ray.origin, *ray.direction, hex_size)
+}
+
+/// Пересечение луча с горизонтальной плоскостью `y = 0`.
+///
+/// Вынесено отдельно, потому что это чистая функция: её можно проверить без
+/// окна, камеры и мира.
+fn ray_to_hex(origin: Vec3, direction: Vec3, hex_size: f32) -> Option<HexCoordinates> {
+    if direction.y.abs() < f32::EPSILON {
+        return None;
+    }
+
+    let distance = -origin.y / direction.y;
+
+    if distance < 0.0 {
+        return None;
+    }
+
+    let hit = origin + direction * distance;
+
+    Some(HexCoordinates::from_world_xz(hit.x, hit.z, hex_size))
+}
+
+/// Контур гекса, поднятый на его собственную высоту.
+///
+/// Без подъёма контур на возвышенностях уходил бы под рельеф.
+#[allow(clippy::too_many_arguments)]
+fn draw_hex_outline(
+    gizmos: &mut Gizmos,
+    coords: HexCoordinates,
+    hex_size: f32,
+    elevation_step: f32,
+    layout: &ChunkLayout,
+    chunk_map: &ChunkMap,
+    chunks: &Query<&ChunkData>,
+    color: Color,
+) {
+    let center = hex_world_position_with(hex_size, coords.q(), coords.r());
+    let height = hex_height(coords, elevation_step, layout, chunk_map, chunks);
+    let base = Vec3::new(center.x, height + 0.05, center.z);
+
+    let corners = hex_corners(hex_size);
+    let mut points = [Vec3::ZERO; 7];
+
+    for (index, corner) in corners.iter().enumerate() {
+        points[index] = base + *corner;
+    }
+
+    points[6] = points[0];
+
+    gizmos.linestrip(points, color);
+}
+
+/// Высота гекса в мире: `elevation * elevation_step`, как и при постройке меша.
+fn hex_height(
+    coords: HexCoordinates,
+    elevation_step: f32,
+    layout: &ChunkLayout,
+    chunk_map: &ChunkMap,
+    chunks: &Query<&ChunkData>,
+) -> f32 {
+    let Some(chunk_entity) = chunk_map.get_chunk_entity_by_hex(layout, coords.q(), coords.r())
+    else {
+        return 0.0;
+    };
+
+    let Ok(data) = chunks.get(chunk_entity) else {
+        return 0.0;
+    };
+
+    let (local_q, local_r) = layout.local_coords(coords.q(), coords.r());
+    let index = data.index(local_q, local_r);
+
+    data.elevations[index] as f32 * elevation_step
+}

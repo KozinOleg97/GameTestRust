@@ -1,6 +1,6 @@
 use crate::game::GameSessionState;
 use crate::simulation::{SimClock, TimeJumpProgress, TimeJumpState};
-use crate::ui::actions::UiAction;
+use crate::ui::actions::SimulationAction;
 use crate::ui::kit::{spawn_hud_button, spawn_label, spawn_progress_bar};
 use crate::ui::theme::UiTheme;
 use bevy::ecs::system::ParamSet;
@@ -31,8 +31,9 @@ pub struct SimulationUIPlugin;
 
 impl Plugin for SimulationUIPlugin {
     fn build(&self, app: &mut App) {
-        // Кнопки панели больше не обрабатываются отдельной системой: они несут
-        // `UiAction`, а разбирает их единый обработчик в `ui::actions`.
+        // Кнопки панели не обрабатываются здесь: они несут действие, а разбирает
+        // его единый наблюдатель в `ui::actions`, который переводит нажатие в
+        // запрос к симуляции.
         app.add_systems(OnEnter(GameSessionState::Active), spawn_simulation_ui)
             .add_systems(OnEnter(TimeJumpState::InProgress), spawn_time_jump_ui)
             .add_systems(
@@ -93,13 +94,13 @@ fn spawn_simulation_ui(mut commands: Commands, theme: Res<UiTheme>) {
                     ..default()
                 })
                 .with_children(|buttons| {
-                    spawn_hud_button(buttons, theme, "⏸", UiAction::PauseToggle);
-                    spawn_hud_button(buttons, theme, "1x", UiAction::SetSpeed(1.0));
-                    spawn_hud_button(buttons, theme, "2x", UiAction::SetSpeed(2.0));
-                    spawn_hud_button(buttons, theme, "5x", UiAction::SetSpeed(5.0));
-                    spawn_hud_button(buttons, theme, "10x", UiAction::SetSpeed(10.0));
-                    spawn_hud_button(buttons, theme, "+1h", UiAction::JumpHours(1));
-                    spawn_hud_button(buttons, theme, "+1d", UiAction::JumpDays(1));
+                    spawn_hud_button(buttons, theme, "⏸", SimulationAction::PauseToggle);
+                    spawn_hud_button(buttons, theme, "1x", SimulationAction::SetSpeed(1.0));
+                    spawn_hud_button(buttons, theme, "2x", SimulationAction::SetSpeed(2.0));
+                    spawn_hud_button(buttons, theme, "5x", SimulationAction::SetSpeed(5.0));
+                    spawn_hud_button(buttons, theme, "10x", SimulationAction::SetSpeed(10.0));
+                    spawn_hud_button(buttons, theme, "+1h", SimulationAction::JumpHours(1));
+                    spawn_hud_button(buttons, theme, "+1d", SimulationAction::JumpDays(1));
                 });
         });
 }

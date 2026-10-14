@@ -1,5 +1,5 @@
 use crate::game::GameSessionState;
-use crate::ui::actions::UiAction;
+use crate::ui::actions::MenuAction;
 use crate::ui::kit::{spawn_button, spawn_screen_root, spawn_title};
 use crate::ui::theme::UiTheme;
 use bevy::prelude::*;
@@ -21,8 +21,8 @@ fn spawn_main_menu(mut commands: Commands, theme: Res<UiTheme>) {
     spawn_screen_root(&mut commands, theme, GameSessionState::MainMenu, |parent| {
         spawn_title(parent, theme, "Hex Game");
 
-        spawn_button(parent, theme, "Start Game", UiAction::StartGame);
-        spawn_button(parent, theme, "Save settings", UiAction::SaveSettings);
+        spawn_button(parent, theme, "Start Game", MenuAction::StartGame);
+        spawn_button(parent, theme, "Save settings", MenuAction::SaveSettings);
     });
 }
 

@@ -1,74 +1,97 @@
-use crate::game::{GameSessionState, PlayState};
-use crate::simulation::{SimClock, TimeJumpRequest};
+use crate::game::MenuRequest;
+use crate::simulation::SimulationRequest;
 use bevy::prelude::*;
 use bevy::ui_widgets::Activate;
-use bevy_settings::SaveSettings;
 
-/// Все действия, которые интерфейс может запросить у игры.
-///
-/// Один enum на всё приложение: экраны не заводят собственных наборов действий,
-/// а единственный обработчик ниже — единственное место, где UI влияет на игру.
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
-pub enum UiAction {
-    // Главное меню
+/// Действия меню — словарь экранов главного меню и паузы.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuAction {
     StartGame,
     SaveSettings,
-
-    // Меню паузы
     Resume,
     OpenSettings,
     QuitToMainMenu,
+}
 
-    // Панель симуляции
+/// Действия панели симуляции — словарь HUD управления временем.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SimulationAction {
     PauseToggle,
     SetSpeed(f64),
     JumpHours(u64),
     JumpDays(u64),
 }
 
-/// Обработчик всех действий интерфейса.
+/// Всё, что интерфейс может попросить у игры.
 ///
-/// Вешается один раз на приложение, поэтому кнопкам не нужны собственные
-/// обсерверы: кнопка несёт `UiAction`, а что с ним делать — решается здесь.
+/// Верхний уровень — один словарь на приложение (открыл файл и видишь всё), а
+/// под-словари принадлежат своим экранам и растут независимо друг от друга.
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub enum UiAction {
+    Menu(MenuAction),
+    Simulation(SimulationAction),
+}
+
+impl From<MenuAction> for UiAction {
+    fn from(action: MenuAction) -> Self {
+        Self::Menu(action)
+    }
+}
+
+impl From<SimulationAction> for UiAction {
+    fn from(action: SimulationAction) -> Self {
+        Self::Simulation(action)
+    }
+}
+
+/// Перевод действия интерфейса в запрос домена.
+///
+/// Реализации живут здесь, а не в домене: домен не должен знать про словарь UI,
+/// а UI знать про запросы домена — его законное право.
+impl From<MenuAction> for MenuRequest {
+    fn from(action: MenuAction) -> Self {
+        match action {
+            MenuAction::StartGame => MenuRequest::StartGame,
+            MenuAction::SaveSettings => MenuRequest::SaveSettings,
+            MenuAction::Resume => MenuRequest::Resume,
+            MenuAction::OpenSettings => MenuRequest::OpenSettings,
+            MenuAction::QuitToMainMenu => MenuRequest::QuitToMainMenu,
+        }
+    }
+}
+
+impl From<SimulationAction> for SimulationRequest {
+    fn from(action: SimulationAction) -> Self {
+        match action {
+            SimulationAction::PauseToggle => SimulationRequest::PauseToggle,
+            SimulationAction::SetSpeed(scale) => SimulationRequest::SetSpeed(scale),
+            SimulationAction::JumpHours(hours) => SimulationRequest::JumpHours(hours),
+            SimulationAction::JumpDays(days) => SimulationRequest::JumpDays(days),
+        }
+    }
+}
+
+/// Единственное место, где интерфейс говорит с игрой.
+///
+/// Наблюдатель ничего не делает сам: он только переводит нажатие в запрос
+/// владельца. Поэтому у него нет ни `SimClock`, ни состояний — и добавить новое
+/// действие теперь значит добавить ветку, а не ещё один ресурс в подпись.
 pub fn on_ui_activate(
     activate: On<Activate>,
     actions: Query<&UiAction>,
-    mut commands: Commands,
-    mut next_session: ResMut<NextState<GameSessionState>>,
-    mut next_play: ResMut<NextState<PlayState>>,
-    mut clock: ResMut<SimClock>,
-    mut jump_request: ResMut<TimeJumpRequest>,
+    mut menu_requests: MessageWriter<MenuRequest>,
+    mut simulation_requests: MessageWriter<SimulationRequest>,
 ) {
     let Ok(action) = actions.get(activate.entity) else {
         return;
     };
 
     match *action {
-        UiAction::StartGame => {
-            next_session.set(GameSessionState::Loading);
-            info!("Starting game session");
+        UiAction::Menu(action) => {
+            menu_requests.write(action.into());
         }
-        UiAction::SaveSettings => {
-            commands.queue(SaveSettings::IfChanged);
-            info!("Settings saved");
-        }
-
-        UiAction::Resume => next_play.set(PlayState::Playing),
-        UiAction::OpenSettings => info!("Open settings (not implemented)"),
-        UiAction::QuitToMainMenu => next_session.set(GameSessionState::MainMenu),
-
-        UiAction::PauseToggle => {
-            clock.paused = !clock.paused;
-            info!("Simulation paused: {}", clock.paused);
-        }
-        UiAction::SetSpeed(scale) => clock.set_time_scale(scale),
-        UiAction::JumpHours(hours) => {
-            let ticks = (hours as f64 * 3600.0 / clock.tick_duration_safe()) as u64;
-            jump_request.0 += ticks.max(1);
-        }
-        UiAction::JumpDays(days) => {
-            let ticks = (days as f64 * 24.0 * 3600.0 / clock.tick_duration_safe()) as u64;
-            jump_request.0 += ticks.max(1);
+        UiAction::Simulation(action) => {
+            simulation_requests.write(action.into());
         }
     }
 }

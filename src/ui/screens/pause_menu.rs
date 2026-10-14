@@ -1,5 +1,5 @@
 use crate::game::PlayState;
-use crate::ui::actions::UiAction;
+use crate::ui::actions::MenuAction;
 use crate::ui::kit::{spawn_button, spawn_screen_root, spawn_title};
 use crate::ui::theme::UiTheme;
 use bevy::prelude::*;
@@ -12,9 +12,9 @@ fn spawn_pause_menu(mut commands: Commands, theme: Res<UiTheme>) {
     spawn_screen_root(&mut commands, theme, PlayState::Paused, |parent| {
         spawn_title(parent, theme, "Paused");
 
-        spawn_button(parent, theme, "Resume", UiAction::Resume);
-        spawn_button(parent, theme, "Open settings", UiAction::OpenSettings);
-        spawn_button(parent, theme, "Main menu", UiAction::QuitToMainMenu);
+        spawn_button(parent, theme, "Resume", MenuAction::Resume);
+        spawn_button(parent, theme, "Open settings", MenuAction::OpenSettings);
+        spawn_button(parent, theme, "Main menu", MenuAction::QuitToMainMenu);
     });
 }
 

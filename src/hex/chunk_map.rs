@@ -64,6 +64,12 @@ pub struct HexInfo {
     pub coords: HexCoordinates,
     pub biome: HexType,
     pub elevation: i8,
+
+    /// Чанк, в котором лежит гекс.
+    ///
+    /// Пока не читается: это ручка для будущего, когда на гексах появятся объекты
+    /// и понадобится дотянуться до данных чанка, а не только до самого гекса.
+    #[allow(dead_code)]
     pub chunk_entity: Entity,
 }
 

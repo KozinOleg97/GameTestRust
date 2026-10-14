@@ -1,5 +1,6 @@
 pub mod debug;
 pub mod hex_math;
+pub mod hex_picking;
 pub mod mesh_builder;
 pub mod plugin;
 pub mod systems;

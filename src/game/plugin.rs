@@ -1,5 +1,7 @@
 use crate::camera::CameraPlugin;
-use crate::game::{GameSessionState, PlayState, WorldGeneratedEvent};
+use crate::game::{
+    GameSessionState, MenuRequest, PlayState, WorldGeneratedEvent, handle_menu_requests,
+};
 use crate::generation::WorldGenerationPlugin;
 use crate::rendering::HexRenderingPlugin;
 
@@ -21,6 +23,7 @@ impl Plugin for GamePlugin {
             .init_state::<GameSessionState>()
             .add_sub_state::<PlayState>()
             .add_message::<WorldGeneratedEvent>()
+            .add_message::<MenuRequest>()
             // --- Ресурсы ---
             // ChunkMap инициализируется пустым для защиты от гонок
             .init_resource::<ChunkMap>()
@@ -34,6 +37,9 @@ impl Plugin for GamePlugin {
                 SimulationPlugin,
             ))
             // --- Глобальные игровые системы ---
+            // Запросы меню обрабатываются всегда: они нужны и в главном меню,
+            // и на паузе, и во время игры.
+            .add_systems(Update, handle_menu_requests)
             .add_systems(
                 Update,
                 handle_pause.run_if(in_state(GameSessionState::Active)),

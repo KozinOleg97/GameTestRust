@@ -29,6 +29,7 @@ pub struct UiTheme {
     pub hud_button_height: f32,
     pub progress_bar_width: f32,
     pub progress_bar_height: f32,
+    pub hex_panel_width: f32,
 
     // --- Шкала шрифтов ---
     pub font_title: f32,
@@ -67,6 +68,7 @@ impl FromWorld for UiTheme {
             hud_button_height: 30.0,
             progress_bar_width: 420.0,
             progress_bar_height: 18.0,
+            hex_panel_width: 220.0,
 
             font_title: 48.0,
             font_heading: 28.0,

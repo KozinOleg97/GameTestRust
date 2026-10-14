@@ -6,14 +6,38 @@ use bevy::diagnostic::{
 };
 use bevy::prelude::*;
 
-// -----------------------------------------------------------------------------
-// Компоненты для UI оверлея
-// -----------------------------------------------------------------------------
+/// Маркер корня оверлея.
 #[derive(Component)]
-pub(crate) struct PerformanceOverlayRoot;
+struct PerformanceOverlayRoot;
 
+/// Маркер текста оверлея.
 #[derive(Component)]
-pub(crate) struct PerformanceText;
+struct PerformanceText;
+
+pub struct PerformanceOverlayPlugin;
+
+impl Plugin for PerformanceOverlayPlugin {
+    fn build(&self, app: &mut App) {
+        // Добавляем встроенные диагностические плагины Bevy
+        app.add_plugins(FrameTimeDiagnosticsPlugin::default());
+        app.add_plugins(EntityCountDiagnosticsPlugin::default());
+        // Плагин для отслеживания CPU и RAM
+        app.add_plugins(SystemInformationDiagnosticsPlugin);
+
+        // HUD создаётся один раз при старте, поэтому в Update остаётся только
+        // переключение флага, синхронизация видимости и обновление текста.
+        app.add_systems(Startup, spawn_overlay_hud);
+        app.add_systems(
+            Update,
+            (
+                toggle_overlay_visibility,
+                sync_overlay_visibility,
+                update_overlay_text,
+            )
+                .chain(),
+        );
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Вспомогательная функция: получение метрик из DiagnosticsStore
@@ -52,7 +76,7 @@ fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32, f6
 // -----------------------------------------------------------------------------
 // Переключение видимости оверлея с сохранением настроек
 // -----------------------------------------------------------------------------
-pub(crate) fn toggle_overlay_visibility(
+fn toggle_overlay_visibility(
     keys: Res<ButtonInput<KeyCode>>,
     mut game_settings: ResMut<GameSettings>,
 ) {
@@ -67,10 +91,10 @@ pub(crate) fn toggle_overlay_visibility(
 // -----------------------------------------------------------------------------
 /// Долгоживущий HUD: создаётся один раз и дальше только переключает видимость.
 ///
-/// Раньше оверлей спавнился и деспавнился системой из `Update` по флагу
-/// настройки — это было третье правило жизненного цикла рядом с правилом
-/// экранов. Теперь правил два, и оба названы явно.
-pub(crate) fn spawn_overlay_hud(
+/// Время жизни панели привязано к её контексту: у оверлея контекст — приложение,
+/// у панелей симуляции и свойств гекса — игровая сессия. Поэтому оверлей живёт
+/// вне состояний, а панели приходят и уходят вместе с состоянием `Active`.
+fn spawn_overlay_hud(
     mut commands: Commands,
     theme: Res<UiTheme>,
     game_settings: Res<GameSettings>,
@@ -104,7 +128,7 @@ pub(crate) fn spawn_overlay_hud(
 // -----------------------------------------------------------------------------
 // Видимость HUD следует за настройкой
 // -----------------------------------------------------------------------------
-pub(crate) fn sync_overlay_visibility(
+fn sync_overlay_visibility(
     game_settings: Res<GameSettings>,
     mut query: Query<&mut Visibility, With<PerformanceOverlayRoot>>,
 ) {
@@ -124,7 +148,7 @@ pub(crate) fn sync_overlay_visibility(
 // -----------------------------------------------------------------------------
 // Обновление текста оверлея (если видим)
 // -----------------------------------------------------------------------------
-pub(crate) fn update_overlay_text(
+fn update_overlay_text(
     time: Res<Time>,
     mut elapsed: Local<f32>,
     game_settings: Res<GameSettings>,

@@ -4,6 +4,7 @@ use crate::game::{GameSessionState, GameSettings, PlayState};
 
 use super::clock::{SimClock, TimeJumpRequest, update_sim_clock};
 use super::debug::debug_time_controls;
+use super::messages::{SimulationRequest, handle_simulation_requests};
 
 /// Состояние экрана промотки времени.
 #[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -52,10 +53,15 @@ impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<TimeJumpState>()
             .init_resource::<TimeJumpRequest>()
+            .add_message::<SimulationRequest>()
             .add_systems(Startup, setup_sim_clock)
             .add_systems(
                 Update,
                 (
+                    // Запросы обрабатываются первыми: если игрок попросил прыжок во
+                    // времени, `handle_time_jump_requests` должен увидеть его в этом
+                    // же кадре, а не в следующем.
+                    handle_simulation_requests,
                     handle_time_jump_requests.run_if(in_state(TimeJumpState::Inactive)),
                     update_sim_clock.run_if(in_state(TimeJumpState::Inactive)),
                     debug_time_controls.run_if(in_state(TimeJumpState::Inactive)),

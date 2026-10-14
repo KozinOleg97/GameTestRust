@@ -6,9 +6,9 @@ use bevy::ui_widgets::{ActivateOnPress, Button};
 
 /// Корневой узел экрана: на весь экран, содержимое по центру, фон меню.
 ///
-/// Экран рождается при входе в состояние и умирает при выходе из него — это
-/// единственное правило жизненного цикла для экранов. Долгоживущий HUD живёт
-/// по другому правилу: создаётся один раз и переключает видимость.
+/// Экран живёт столько, сколько живёт его контекст: приложение для оверлея,
+/// игровая сессия для панелей симуляции и свойств гекса. У экранов контекст —
+/// состояние, поэтому они рождаются в `OnEnter` и умирают через `DespawnOnExit`.
 pub fn spawn_screen_root<S: States>(
     commands: &mut Commands,
     theme: &UiTheme,
@@ -45,18 +45,18 @@ pub fn spawn_title(parent: &mut ChildSpawnerCommands, theme: &UiTheme, text: &st
 }
 
 /// Кнопка экрана: несёт действие и активируется по нажатию.
-pub fn spawn_button(
+pub fn spawn_button<A: Into<UiAction>>(
     parent: &mut ChildSpawnerCommands,
     theme: &UiTheme,
     label: &str,
-    action: UiAction,
+    action: A,
 ) {
     parent
         .spawn((
             Button,
             Hovered(false),
             ActivateOnPress,
-            action,
+            action.into(),
             Node {
                 width: Val::Px(theme.button_width),
                 height: Val::Px(theme.button_height),
@@ -75,18 +75,18 @@ pub fn spawn_button(
 }
 
 /// Компактная кнопка HUD: та же логика активации, другие размеры.
-pub fn spawn_hud_button(
+pub fn spawn_hud_button<A: Into<UiAction>>(
     parent: &mut ChildSpawnerCommands,
     theme: &UiTheme,
     label: &str,
-    action: UiAction,
+    action: A,
 ) {
     parent
         .spawn((
             Button,
             Hovered(false),
             ActivateOnPress,
-            action,
+            action.into(),
             Node {
                 width: Val::Px(theme.hud_button_width),
                 height: Val::Px(theme.hud_button_height),
@@ -117,6 +117,25 @@ pub fn spawn_label<M: Component>(
         TextColor(theme.text),
         marker,
     ));
+}
+
+/// Панель HUD: узел с фоном панели, живущий столько же, сколько его контекст.
+pub fn spawn_panel<S: States, M: Component>(
+    commands: &mut Commands,
+    theme: &UiTheme,
+    node: Node,
+    marker: M,
+    state: S,
+) -> Entity {
+    commands
+        .spawn((
+            node,
+            BackgroundColor(theme.panel_background),
+            Visibility::Visible,
+            marker,
+            DespawnOnExit(state),
+        ))
+        .id()
 }
 
 /// Полоса прогресса: дорожка и заполнение с маркером, ширину которого

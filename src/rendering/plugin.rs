@@ -1,13 +1,14 @@
 use bevy::prelude::*;
 
 use super::debug::debug_draw_chunk_bounds;
+use super::hex_picking::{draw_hex_selection, select_hex_on_click, update_hovered_hex};
 use super::systems::{
     MeshBuildQueue, TerrainMaterial, apply_mesh_tasks_system, clear_mesh_queue,
     ensure_mesh_generation, process_mesh_build_queue_system, queue_dirty_chunks_system,
     setup_terrain_material,
 };
-use crate::game::GameSessionState;
-use crate::hex::{ChunkLayout, ChunkMap, MapBounds};
+use crate::game::{GameSessionState, PlayState};
+use crate::hex::{ChunkLayout, ChunkMap, HoveredHex, MapBounds, SelectedHex};
 use crate::rendering::{debug_frustum_stats, log_when_all_chunks_meshed};
 
 pub struct HexRenderingPlugin;
@@ -19,6 +20,10 @@ impl Plugin for HexRenderingPlugin {
             .init_resource::<MapBounds>()
             .init_resource::<MeshBuildQueue>()
             .init_resource::<TerrainMaterial>()
+            // Состояние выбора гекса принадлежит домену, но инициализируется здесь:
+            // это единственный плагин, который знает про камеру и курсор.
+            .init_resource::<HoveredHex>()
+            .init_resource::<SelectedHex>()
             .add_systems(OnEnter(GameSessionState::Loading), clear_mesh_queue)
             .add_systems(OnExit(GameSessionState::Active), clear_mesh_queue)
             .add_systems(
@@ -35,6 +40,21 @@ impl Plugin for HexRenderingPlugin {
             .add_systems(
                 PostUpdate,
                 apply_mesh_tasks_system.run_if(in_state(GameSessionState::Active)),
+            )
+            // Наведение и выбор работают только когда идёт игра: в меню и на паузе
+            // клик по интерфейсу не должен выбирать гекс за панелью.
+            .add_systems(
+                Update,
+                (update_hovered_hex, select_hex_on_click)
+                    .chain()
+                    .run_if(in_state(GameSessionState::Active))
+                    .run_if(in_state(PlayState::Playing)),
+            )
+            // Контуры видны всегда в игре, включая паузу: выделение не должно
+            // исчезать от того, что игрок открыл меню.
+            .add_systems(
+                Update,
+                draw_hex_selection.run_if(in_state(GameSessionState::Active)),
             )
             .add_systems(
                 Update,
