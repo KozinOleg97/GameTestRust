@@ -33,7 +33,7 @@ fn spawn_hex_info_panel(mut commands: Commands, theme: Res<UiTheme>) {
         Node {
             position_type: PositionType::Absolute,
             left: Val::Px(10.0),
-            top: Val::Px(90.0),
+            top: Val::Px(140.0),
             width: Val::Px(theme.hex_panel_width),
             padding: UiRect::all(Val::Px(8.0)),
             flex_direction: FlexDirection::Column,
