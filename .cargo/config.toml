@@ -1,0 +1,28 @@
+# Cargo-конфигурация проекта GameTestRust.
+#
+# ВАЖНО: не добавляйте сюда RUSTFLAGS / linker / target-cpu без необходимости.
+# Эти параметры входят в build fingerprint, и их изменение вызывает полную
+# пересборку всех ~600 крейтов Bevy (десятки минут, десятки ГБ в target/).
+
+[alias]
+# Быстрые команды: cargo r, cargo rr, cargo c, cargo l, cargo f
+r  = "run"
+rr = "run --release"
+c  = "check --all-targets"
+l  = "clippy --all-targets"
+f  = "fmt --all"
+ft = "fmt --all -- --check"
+
+# Быстрая итерация при разработке (Bevy линкуется как dylib).
+# Осознанно тяжёлая: первый запуск пересоберёт зависимости.
+rd = "run --features dynamic_linking"
+cd = "check --features dynamic_linking"
+
+[build]
+# Профили dev/release настроены в Cargo.toml.
+# Опционально: ускорение линковки через rust-lld, который уже есть в toolchain.
+# Раскомментируйте, если готовы к однократной полной пересборке ради более
+# быстрой линковки в дальнейшем.
+#
+# [target.x86_64-pc-windows-msvc]
+# linker = "rust-lld"

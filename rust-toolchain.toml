@@ -1,0 +1,6 @@
+# Фиксирует проверенное окружение сборки.
+# Rust 1.97.1 (stable-x86_64-pc-windows-msvc), edition 2024 в Cargo.toml.
+[toolchain]
+channel = "stable-x86_64-pc-windows-msvc"
+components = ["rustfmt", "clippy", "rust-src"]
+profile = "default"
