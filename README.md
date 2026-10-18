@@ -1,89 +1,89 @@
 # GameTestRust
 
-Игра на гексагональной сетке: **Bevy 0.19**, Rust edition 2024.
+A game on a hexagonal grid: **Bevy 0.20**, Rust edition 2024.
 
-## Требования
+## Requirements
 
-Проверено в этом окружении:
+Verified in this environment:
 
-| Компонент | Версия |
+| Component | Version |
 |---|---|
 | `cargo` | 1.97.1 |
 | `rustc` | 1.97.1 |
 | Toolchain | `stable-x86_64-pc-windows-msvc` |
-| Компоненты | `rustfmt`, `clippy`, `rust-src`, `rust-docs` |
+| Components | `rustfmt`, `clippy`, `rust-src`, `rust-docs` |
 
-Edition 2024 требует Rust **1.85+**, так что 1.97.1 подходит.
+Edition 2024 requires Rust **1.85+**, so 1.97.1 is fine.
 
-## Сборка и запуск
+## Build and run
 
 ```powershell
-cargo run                  # отладочная сборка
-cargo run --release        # релизная сборка
+cargo run                  # debug build
+cargo run --release        # release build
 ```
 
-Профили в `Cargo.toml` уже настроены под геймдев:
-`opt-level = 0` для своего кода (быстрая компиляция) и `opt-level = 3` для
-всех зависимостей (быстрый рантайм в dev-сборке).
+Profiles in `Cargo.toml` are already tuned for gamedev:
+`opt-level = 0` for our own code (fast compilation) and `opt-level = 3` for
+all dependencies (fast runtime in dev builds).
 
-### Быстрая итерация
+### Fast iteration
 
 ```powershell
 cargo run --features dynamic_linking
 ```
 
-Bevy линкуется как динамическая библиотека — инкрементальная пересборка
-происходит заметно быстрее. **Только для разработки**, релиз так собирать нельзя.
-Первый запуск с этим флагом пересоберёт зависимости, поэтому он долгий.
+Bevy is linked as a dynamic library — incremental rebuilds
+happen noticeably faster. **Development only**, release must not be built this way.
+The first run with this flag will rebuild the dependencies, so it is slow.
 
-## Проверки перед коммитом
+## Pre-commit checks
 
 ```powershell
-cargo fmt --all          # форматирование
-cargo clippy --all-targets   # линт (сейчас 0 ошибок, 52 предупреждения)
-cargo check --all-targets    # типы (сейчас 0 ошибок, 29 предупреждений)
+cargo fmt --all          # formatting
+cargo clippy --all-targets   # lint (currently 0 errors, 52 warnings)
+cargo check --all-targets    # types (currently 0 errors, 29 warnings)
 ```
 
-Короткие алиасы (см. `.cargo/config.toml`): `cargo c`, `cargo l`, `cargo f`, `cargo ft`.
+Short aliases (see `.cargo/config.toml`): `cargo c`, `cargo l`, `cargo f`, `cargo ft`.
 
-## Управление
+## Controls
 
-| Ввод | Действие |
+| Input | Action |
 |---|---|
-| `Enter` | начать игру из главного меню |
-| `Esc` | пауза / продолжить |
-| `W` `A` `S` `D` | перемещение камеры |
-| ЛКМ + перетаскивание | панорамирование |
-| ПКМ + перетаскивание | вращение камеры вокруг точки под курсором |
-| Колесо мыши | зум (через FOV) |
-| `F12` | оверлей производительности |
+| `Enter` | start the game from the main menu |
+| `Esc` | pause / resume |
+| `W` `A` `S` `D` | move the camera |
+| LMB + drag | pan |
+| RMB + drag | rotate the camera around the point under the cursor |
+| Mouse wheel | zoom (via FOV) |
+| `F12` | performance overlay |
 
-Клавиша оверлея настраивается: `PerformanceOverlaySettings::toggle_key`.
+The overlay key is configurable: `PerformanceOverlaySettings::toggle_key`.
 
-## Структура
+## Structure
 
 ```
 src/
-├── main.rs            точка входа, окно + GamePlugin
-├── game/              состояния сессии, настройки, события, главный плагин
+├── main.rs            entry point, window + GamePlugin
+├── game/              session states, settings, events, main plugin
 │   ├── state.rs       GameSessionState (MainMenu/Loading/Active) + PlayState (SubStates)
-│   └── settings.rs    GameSettings и группы настроек (Reflect + bevy-settings)
-├── generation/        генерация мира: noise, world_generator
-├── hex/               модель данных: чанки, карта чанков, координаты, типы гексов
-├── rendering/         построение мешей, hex-математика, отладочная отрисовка
-├── camera/            настройка камеры и контроллер (панорама/вращение/зум)
-├── simulation/        игровые часы (SimClock) и тики симуляции
-└── ui/                главное меню, пауза, оверлей производительности, UI симуляции
+│   └── settings.rs    GameSettings and settings groups (Reflect + bevy-settings)
+├── generation/        world generation: noise, world_generator
+├── hex/               data model: chunks, chunk map, coordinates, hex types
+├── rendering/         mesh building, hex math, debug drawing
+├── camera/            camera setup and controller (pan/rotate/zoom)
+├── simulation/        game clock (SimClock) and simulation ticks
+└── ui/                main menu, pause, performance overlay, simulation UI
 ```
 
-Поток запуска: `MainMenu` → `Enter` → `Loading` (генерация мира в фоновом потоке)
-→ событие `WorldGeneratedEvent` → `Active`. Пауза — это подсостояние
-`PlayState::Paused`, которое живёт только внутри `GameSessionState::Active`.
+Startup flow: `MainMenu` → `Enter` → `Loading` (world generation on a background thread)
+→ `WorldGeneratedEvent` → `Active`. Pause is the substate
+`PlayState::Paused`, which lives only inside `GameSessionState::Active`.
 
-## Важно про артефакты
+## Note about artifacts
 
-- Каталог `target/` занимает **~51 ГБ**.
-- `target/release/Новая папка/` — это **упакованный релиз 0.1.5**
-  (`GameTestRust.exe`, `assets/`, `v1_release.7z`), а не мусор.
-  `cargo clean` его удалит — при необходимости скопируйте заранее.
-- Для запуска релизной сборки каталог `assets/` должен лежать рядом с `.exe`.
+- The `target/` directory takes **~51 GB**.
+- `target/release/New folder/` is the **packaged 0.1.5 release**
+  (`GameTestRust.exe`, `assets/`, `v1_release.7z`), not junk.
+  `cargo clean` will delete it — copy it beforehand if needed.
+- To run the release build, the `assets/` directory must sit next to the `.exe`.

@@ -2,7 +2,6 @@
 //!
 //! Бинарный `main.rs` только собирает `App`
 
-
 pub mod camera;
 pub mod game;
 pub mod generation;

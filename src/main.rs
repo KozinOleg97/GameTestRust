@@ -1,6 +1,6 @@
+use GameTestRust::game::GamePlugin;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, Window, WindowPlugin};
-use GameTestRust::game::GamePlugin;
 
 fn main() {
     App::new()

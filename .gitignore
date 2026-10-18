@@ -9,3 +9,7 @@
 # Локальная установка агентских скиллов: инструмент разработчика, не часть проекта.
 # Конфигурация скиллов под проект лежит в AGENTS.md и docs/agents/ — они версионируются.
 /.agents/
+
+# Same agent-tooling state: local skills folder and its lockfile.
+/.claude/
+/skills-lock.json
