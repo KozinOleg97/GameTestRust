@@ -26,7 +26,8 @@ pub fn normalize_chunk_size(size: usize) -> usize {
 ///
 /// Создаётся из настроек:
 /// ```rust
-/// ChunkLayout::from_size(32)
+/// use GameTestRust::hex::ChunkLayout;
+/// assert_eq!(ChunkLayout::from_size(32).size, 32);
 /// ```
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChunkLayout {

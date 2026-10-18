@@ -24,5 +24,5 @@ cd = "check --features dynamic_linking"
 # Раскомментируйте, если готовы к однократной полной пересборке ради более
 # быстрой линковки в дальнейшем.
 #
-# [target.x86_64-pc-windows-msvc]
-# linker = "rust-lld"
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld"

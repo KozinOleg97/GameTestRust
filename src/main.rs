@@ -1,15 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::{PresentMode, Window, WindowPlugin};
-use game::GamePlugin;
-
-mod camera;
-mod game;
-mod generation;
-mod hex;
-mod pointer;
-mod rendering;
-mod simulation;
-mod ui;
+use GameTestRust::game::GamePlugin;
 
 fn main() {
     App::new()

@@ -80,10 +80,10 @@ fn ground_point_at(transform: &Transform, camera: &Camera, cursor: Vec2) -> Opti
 /// начатый в мире жест она не обрывает. Якоря — те же данные, которые не дают
 /// панорамированию и вращению уезжать.
 ///
-/// `pub(crate)` — потому что тип виден в подписи системы, которую регистрирует
-/// плагин из другого модуля.
+/// Публичный, потому что виден в подписи системы, которую регистрирует плагин
+/// из другого модуля.
 #[derive(Default)]
-pub(crate) struct CameraDrag {
+pub struct CameraDrag {
     pan: bool,
     rotate: bool,
     pan_anchor: Option<DragAnchor>,
