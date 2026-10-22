@@ -5,7 +5,6 @@ use crate::game::{
 use crate::generation::WorldGenerationPlugin;
 use crate::rendering::HexRenderingPlugin;
 
-use crate::hex::ChunkMap;
 use crate::pointer::PointerPlugin;
 use crate::simulation::clock::SimClock;
 use crate::simulation::plugin::SimulationPlugin;
@@ -25,10 +24,11 @@ impl Plugin for GamePlugin {
             .add_sub_state::<PlayState>()
             .add_message::<WorldGeneratedEvent>()
             .add_message::<MenuRequest>()
-            // --- Ресурсы ---
-            // ChunkMap инициализируется пустым для защиты от гонок
-            .init_resource::<ChunkMap>()
             // --- Подключаемые плагины ---
+            // Ресурсы мира (`ChunkMap`, `ChunkLayout`, `MapBounds`) здесь не
+            // инициализируются: их владелец — `WorldGenerationPlugin`, который их
+            // и создаёт, и сбрасывает. Дублирующий `init_resource` маскировал бы
+            // порядок плагинов, а не чинил бы его.
             .add_plugins((
                 SettingsPlugin::new("org.bevy.examples.settings"),
                 PointerPlugin,

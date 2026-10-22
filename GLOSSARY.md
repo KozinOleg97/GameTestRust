@@ -1,33 +1,33 @@
 # GameTestRust
 
-Игра на гексагональной сетке: процедурная генерация мира, симуляция времени и интерфейс поверх 3D-сцены.
+A game on a hexagonal grid: procedural world generation, time simulation, and an interface over a 3D scene.
 
-## Язык
+## Language
 
-**Экран**:
-Полноэкранный слой интерфейса, который существует, пока игра находится в соответствующем режиме: главное меню, загрузка, пауза.
-_Avoid_: страница, окно, сцена
+**Screen**:
+A full-screen interface layer that exists while the game is in the corresponding mode: main menu, loading, pause.
+_Avoid_: page, window, scene
 
 **HUD**:
-Постоянный слой поверх игрового мира: счётчики и панели, не привязанные к конкретному режиму игры.
-_Avoid_: оверлей (в общем смысле), виджет, панель
+A persistent layer over the game world: counters and panels not tied to a specific game mode.
+_Avoid_: overlay (in the general sense), widget, panel
 
-**Панель симуляции**:
-HUD с игровым временем, скоростью и кнопками управления временем.
-_Avoid_: панель времени, UI времени, тайм-бар
+**Simulation panel**:
+A HUD with game time, speed and time-control buttons.
+_Avoid_: time panel, time UI, time bar
 
-**Оверлей производительности**:
-HUD с метриками кадра, памяти и числом сущностей.
-_Avoid_: FPS-счётчик, оверлей (без уточнения)
+**Performance overlay**:
+A HUD with frame, memory and entity-count metrics.
+_Avoid_: FPS counter, overlay (without qualification)
 
-**Панель свойств гекса**:
-HUD с данными гекса: координаты, биом, высота, стоимость перемещения.
-_Avoid_: инспектор, инфо-панель, тултип
+**Hex properties panel**:
+A HUD with hex data: coordinates, biome, elevation, movement cost.
+_Avoid_: inspector, info panel, tooltip
 
-**Наведение**:
-Гекс под курсором. Предпросмотр: пересчитывается каждый кадр и исчезает, стоит увести мышь. Из наведения кликом получается выделение.
-_Avoid_: фокус, активный гекс, подсветка (как название состояния)
+**Hover**:
+The hex under the cursor. A preview: recomputed every frame and disappears as soon as the mouse moves away. A click on the hover produces the selection.
+_Avoid_: focus, active hex, highlight (as a state name)
 
-**Выделение**:
-Гекс, закреплённый кликом. Живёт до следующего клика по другому гексу; к нему будут привязываться действия над объектами.
-_Avoid_: фокус, активный гекс, текущая цель
+**Selection**:
+A hex pinned by a click. Lives until the next click on another hex; actions on objects will be attached to it.
+_Avoid_: focus, active hex, current target

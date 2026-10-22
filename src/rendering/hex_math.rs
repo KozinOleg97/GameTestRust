@@ -2,23 +2,20 @@ use bevy::prelude::*;
 
 use crate::hex::{ChunkLayout, HexChunk};
 
-pub const DEFAULT_HEX_SIZE: f32 = 1.0;
 pub const DEFAULT_ELEVATION_STEP: f32 = 0.9;
 pub const DEFAULT_SKIRT_HEIGHT: f32 = -10.0;
 
-/// Корень из трёх: отношение ширины гекса к его размеру для Pointy-Top.
-///
-/// Константа живёт в домене (`hex`), потому что нужна и обратному
-/// преобразованию `HexCoordinates::from_world_xz`, а не только отрисовке.
-pub use crate::hex::SQRT_3;
+/// Размер гекса по умолчанию и корень из трёх объявлены в домене (`hex`):
+/// они нужны не только отрисовке, но и `HexCoordinates::from_world_xz`.
+pub use crate::hex::{DEFAULT_HEX_SIZE, SQRT_3};
 
 pub fn hex_world_position(global_q: i32, global_r: i32) -> Vec3 {
     hex_world_position_with(DEFAULT_HEX_SIZE, global_q, global_r)
 }
 
+/// Собирает `Vec3` из доменной пары `(x, z)`: `hex` не знает про `Vec3`.
 pub fn hex_world_position_with(hex_size: f32, global_q: i32, global_r: i32) -> Vec3 {
-    let x = hex_size * SQRT_3 * (global_q as f32 + global_r as f32 / 2.0);
-    let z = hex_size * 1.5 * global_r as f32;
+    let (x, z) = crate::hex::hex_world_xz_with(hex_size, global_q, global_r);
 
     Vec3::new(x, 0.0, z)
 }

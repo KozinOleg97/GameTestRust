@@ -1,12 +1,12 @@
-# UI просит игру сообщениями, а не ресурсами
+# UI asks the game via messages, not resources
 
-Интерфейс не трогает состояние игры напрямую. Кнопка несёт `UiAction`, единственный наблюдатель `on_ui_activate` переводит его в запрос домена — `MenuRequest` для меню, `SimulationRequest` для симуляции, — а обрабатывает запрос система того модуля, который им владеет. Типы запросов объявлены в домене, поэтому интерфейс зависит от игры, а игра про интерфейс не знает.
+The interface does not touch game state directly. A button carries `UiAction`, a single observer `on_ui_activate` translates it into a domain request — `MenuRequest` for the menu, `SimulationRequest` for simulation — and the request is handled by a system of the module that owns it. Request types are declared in the domain, so the interface depends on the game, while the game knows nothing about the interface.
 
-Сообщения, а не прямые вызовы, выбраны ещё и потому, что источником запроса может быть не только кнопка: горячая клавиша, сценарий или сетевой запрос однажды попросят начать игру или сменить скорость, и домену будет безразлично, кто именно попросил.
+Messages rather than direct calls were chosen also because the source of a request may be more than a button: a hotkey, a script, or a network request will one day ask to start the game or change speed, and the domain will not care who exactly asked.
 
 ## Consequences
 
-- `UiAction` остаётся словарём интерфейса и состоит из под-перечислений по владельцам — `MenuAction`, `SimulationAction`, — поэтому словари экранов растут независимо: новая панель не трогает чужие ветки.
-- Наблюдатель объявляет только писателей сообщений, а не ресурсы домена: новое действие добавляет ветку, а не параметр в подпись.
-- Для взаимодействий с конкретной игровой сущностью сообщения не годятся: там намерение адресовано сущности и ответ приходит туда же. Правило — адресные взаимодействия идут событиями или компонентом-намерением на самой сущности; решение по ним принимается вместе с первой такой задачей (объекты на гексах), а не заранее.
-- Выбор гекса кликом в интерфейс не попал вообще: это взаимодействие с миром, поэтому оно живёт в домене — `hex::HoveredHex` и `hex::SelectedHex`, — а панель только читает результат. Тот же принцип будет применяться дальше: если у действия нет кнопки, это не действие интерфейса.
+- `UiAction` remains the interface's dictionary and consists of sub-enums by owner — `MenuAction`, `SimulationAction` — so screen dictionaries grow independently: a new panel does not touch other branches.
+- The observer declares only message writers, not domain resources: a new action adds a branch, not a parameter in the signature.
+- Messages are not suitable for interactions with a specific game entity: there the intent is addressed to the entity and the response comes back there. The rule — addressed interactions go as events or as an intent component on the entity itself; the decision on them is made together with the first such task (objects on hexes), not in advance.
+- Hex selection by click did not get into the interface at all: it is an interaction with the world, so it lives in the domain — `hex::HoveredHex` and `hex::SelectedHex` — and the panel only reads the result. The same principle will be applied going forward: if an action has no button, it is not an interface action.

@@ -4,8 +4,26 @@ use std::ops::Add;
 /// Корень из трёх: отношение ширины гекса к его размеру для Pointy-Top.
 pub const SQRT_3: f32 = 1.732_050_8;
 
-/// Размер гекса по умолчанию — тот же, что в `rendering::hex_math`.
-const DEFAULT_HEX_SIZE: f32 = 1.0;
+/// Размер гекса по умолчанию. Единственное объявление в крэйте:
+/// `rendering::hex_math` реэкспортирует его, а не заводит своё.
+pub const DEFAULT_HEX_SIZE: f32 = 1.0;
+
+/// Центр гекса в плоскости земли: `(x, z)`.
+///
+/// Домен намеренно не знает про `Vec3`: это просто пара координат, а сборку
+/// `Vec3` делает отрисовка. Прямое преобразование к
+/// [`HexCoordinates::from_world_xz`] — они обязаны оставаться взаимно обратными.
+pub fn hex_world_xz_with(hex_size: f32, global_q: i32, global_r: i32) -> (f32, f32) {
+    let x = hex_size * SQRT_3 * (global_q as f32 + global_r as f32 / 2.0);
+    let z = hex_size * 1.5 * global_r as f32;
+
+    (x, z)
+}
+
+/// Центр гекса в плоскости земли при [`DEFAULT_HEX_SIZE`].
+pub fn hex_world_xz(global_q: i32, global_r: i32) -> (f32, f32) {
+    hex_world_xz_with(DEFAULT_HEX_SIZE, global_q, global_r)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexCoordinates {
@@ -42,7 +60,7 @@ impl HexCoordinates {
         (dq.abs() + dr.abs() + ds.abs()) / 2
     }
 
-    /// Обратное к [`crate::rendering::hex_math::hex_world_position_with`]:
+    /// Обратное к [`hex_world_xz_with`]:
     /// точка в плоскости XZ -> гекс, в который она попадает.
     ///
     /// Гексы Pointy-Top, поэтому сначала получаем дробные осевые координаты,
@@ -55,7 +73,7 @@ impl HexCoordinates {
             hex_size
         };
 
-        // Прямое преобразование (см. rendering::hex_math):
+        // Прямое преобразование (см. `hex_world_xz_with`):
         //   x = size * SQRT_3 * (q + r / 2)
         //   z = size * 1.5 * r
         let r = (2.0 / 3.0) * z / size;
@@ -122,7 +140,6 @@ pub const HEX_DIRECTIONS: [HexCoordinates; 6] = [
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rendering::hex_math::hex_world_position_with;
 
     /// Прямое и обратное преобразования обязаны сходиться на центрах гексов:
     /// на этой паре формул держится выбор гекса курсором, и если они разойдутся,
@@ -133,8 +150,8 @@ mod tests {
 
         for q in -4..=4 {
             for r in -4..=4 {
-                let world = hex_world_position_with(size, q, r);
-                let back = HexCoordinates::from_world_xz(world.x, world.z, size);
+                let (x, z) = hex_world_xz_with(size, q, r);
+                let back = HexCoordinates::from_world_xz(x, z, size);
 
                 assert_eq!(back, HexCoordinates::new(q, r), "гекс ({q}, {r})");
             }
@@ -146,10 +163,10 @@ mod tests {
     #[test]
     fn points_near_center_stay_in_same_hex() {
         let size = 1.0;
-        let center = hex_world_position_with(size, 2, 3);
+        let (center_x, center_z) = hex_world_xz_with(size, 2, 3);
 
         for offset in [-0.2, 0.0, 0.2] {
-            let back = HexCoordinates::from_world_xz(center.x + offset, center.z + offset, size);
+            let back = HexCoordinates::from_world_xz(center_x + offset, center_z + offset, size);
             assert_eq!(back, HexCoordinates::new(2, 3));
         }
     }

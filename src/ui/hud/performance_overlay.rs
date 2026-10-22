@@ -19,14 +19,14 @@ pub struct PerformanceOverlayPlugin;
 
 impl Plugin for PerformanceOverlayPlugin {
     fn build(&self, app: &mut App) {
-        // Добавляем встроенные диагностические плагины Bevy
+        // Built-in Bevy diagnostics.
         app.add_plugins(FrameTimeDiagnosticsPlugin::default());
         app.add_plugins(EntityCountDiagnosticsPlugin::default());
         // Плагин для отслеживания CPU и RAM
         app.add_plugins(SystemInformationDiagnosticsPlugin);
 
-        // HUD создаётся один раз при старте, поэтому в Update остаётся только
-        // переключение флага, синхронизация видимости и обновление текста.
+        // The HUD is created once at startup; Update only toggles the flag,
+        // syncs visibility, and refreshes the text.
         app.add_systems(Startup, spawn_overlay_hud);
         app.add_systems(
             Update,
@@ -40,9 +40,7 @@ impl Plugin for PerformanceOverlayPlugin {
     }
 }
 
-// -----------------------------------------------------------------------------
-// Вспомогательная функция: получение метрик из DiagnosticsStore
-// -----------------------------------------------------------------------------
+/// Extracts (fps, frame_time_ms, entity_count, process_mem_mib) from the store.
 fn get_performance_metrics(diagnostics: &DiagnosticsStore) -> (f32, f32, u32, f64) {
     let fps = diagnostics
         .get(&FrameTimeDiagnosticsPlugin::FPS)

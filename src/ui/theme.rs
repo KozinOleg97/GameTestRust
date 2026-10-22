@@ -2,10 +2,6 @@ use bevy::prelude::*;
 
 /// Единый источник визуального языка интерфейса: цвета, размеры и шрифт.
 ///
-/// До унификации эти значения жили в трёх местах: константы в `style.rs`,
-/// литералы прямо в коде экранов и поля `PerformanceOverlaySettings` в
-/// настройках. Теперь дизайн принадлежит теме, а настройки хранят только
-/// пользовательские предпочтения — видимость, позицию и интервал обновления.
 #[derive(Resource)]
 pub struct UiTheme {
     // --- Цвета ---
@@ -47,12 +43,12 @@ impl FromWorld for UiTheme {
     fn from_world(world: &mut World) -> Self {
         let font: Handle<Font> = world
             .resource::<AssetServer>()
-            .load("fonts/FiraSans-Bold.ttf");
+            .load("fonts/Rubik-VariableFont_wght.ttf");
 
         Self {
             button_normal: Color::srgb(0.15, 0.15, 0.15),
-            button_hovered: Color::srgb(0.25, 0.25, 0.25),
-            button_pressed: Color::srgb(0.35, 0.75, 0.35),
+            button_hovered: Color::srgb(0.31, 0.31, 0.31),
+            button_pressed: Color::srgb(0.1, 0.1, 0.1),
             text: Color::WHITE,
             menu_background: Color::srgba(0.0, 0.0, 0.0, 0.7),
             panel_background: Color::srgba(0.0, 0.0, 0.0, 0.85),

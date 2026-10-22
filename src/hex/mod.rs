@@ -9,6 +9,8 @@ pub use chunk::{
     MapBounds, is_valid_chunk_size, normalize_chunk_size,
 };
 pub use chunk_map::{ChunkMap, HexInfo, get_hex_info, modify_hex_data, set_hex_data};
-pub use coordinates::{HEX_DIRECTIONS, HexCoordinates, SQRT_3};
+pub use coordinates::{
+    DEFAULT_HEX_SIZE, HEX_DIRECTIONS, HexCoordinates, SQRT_3, hex_world_xz, hex_world_xz_with,
+};
 pub use hex_type::HexType;
 pub use selection::{HoveredHex, SelectedHex};

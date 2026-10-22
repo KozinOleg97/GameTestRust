@@ -29,19 +29,24 @@ all dependencies (fast runtime in dev builds).
 ### Fast iteration
 
 ```powershell
-cargo run --features dynamic_linking
+cargo rd      # = cargo run --features dynamic_linking
+cargo cd      # = cargo check --features dynamic_linking
 ```
 
 Bevy is linked as a dynamic library — incremental rebuilds
 happen noticeably faster. **Development only**, release must not be built this way.
 The first run with this flag will rebuild the dependencies, so it is slow.
 
+`.cargo/config.toml` also enables the `rust-lld` linker for
+`x86_64-pc-windows-msvc`: it was already switched on, which cost one full
+rebuild of the ~600 Bevy crates.
+
 ## Pre-commit checks
 
 ```powershell
 cargo fmt --all          # formatting
-cargo clippy --all-targets   # lint (currently 0 errors, 52 warnings)
-cargo check --all-targets    # types (currently 0 errors, 29 warnings)
+cargo l          # lint  (currently 0 errors, 9 warnings: type_complexity, non_snake_case)
+cargo c          # types (currently 0 errors, 1 warning: crate name is not snake_case)
 ```
 
 Short aliases (see `.cargo/config.toml`): `cargo c`, `cargo l`, `cargo f`, `cargo ft`.
@@ -52,10 +57,13 @@ Short aliases (see `.cargo/config.toml`): `cargo c`, `cargo l`, `cargo f`, `carg
 |---|---|
 | `Enter` | start the game from the main menu |
 | `Esc` | pause / resume |
-| `W` `A` `S` `D` | move the camera |
-| LMB + drag | pan |
+| `W` `A` `S` `D` | move the camera, relative to its orientation |
+| LMB + drag | pan (the world point under the cursor stays pinned) |
 | RMB + drag | rotate the camera around the point under the cursor |
-| Mouse wheel | zoom (via FOV) |
+| Mouse wheel | change altitude (dolly, clamped to `zoom_min_altitude` / `zoom_max_altitude`) |
+| `F5` `F9` | jump simulation time by 1 hour / 1 day |
+| `F6` `F7` `F8` | simulation speed 10x / 1x / toggle pause |
+| `F10` | log frustum culling stats, hide the simulation panel |
 | `F12` | performance overlay |
 
 The overlay key is configurable: `PerformanceOverlaySettings::toggle_key`.
@@ -64,14 +72,16 @@ The overlay key is configurable: `PerformanceOverlaySettings::toggle_key`.
 
 ```
 src/
-├── main.rs            entry point, window + GamePlugin
+├── lib.rs             library crate: declares all modules, so tests/ can reach them
+├── main.rs            entry point: window + GamePlugin, nothing else
 ├── game/              session states, settings, events, main plugin
 │   ├── state.rs       GameSessionState (MainMenu/Loading/Active) + PlayState (SubStates)
 │   └── settings.rs    GameSettings and settings groups (Reflect + bevy-settings)
+├── pointer.rs         pointer occlusion: PointerOcclusion (panel swallows clicks), PointerBlocked
 ├── generation/        world generation: noise, world_generator
 ├── hex/               data model: chunks, chunk map, coordinates, hex types
 ├── rendering/         mesh building, hex math, debug drawing
-├── camera/            camera setup and controller (pan/rotate/zoom)
+├── camera/            camera setup and controller (pan/rotate/altitude)
 ├── simulation/        game clock (SimClock) and simulation ticks
 └── ui/                main menu, pause, performance overlay, simulation UI
 ```
@@ -80,10 +90,4 @@ Startup flow: `MainMenu` → `Enter` → `Loading` (world generation on a backgr
 → `WorldGeneratedEvent` → `Active`. Pause is the substate
 `PlayState::Paused`, which lives only inside `GameSessionState::Active`.
 
-## Note about artifacts
-
-- The `target/` directory takes **~51 GB**.
-- `target/release/New folder/` is the **packaged 0.1.5 release**
-  (`GameTestRust.exe`, `assets/`, `v1_release.7z`), not junk.
-  `cargo clean` will delete it — copy it beforehand if needed.
 - To run the release build, the `assets/` directory must sit next to the `.exe`.

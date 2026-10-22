@@ -1,9 +1,9 @@
-# Визуальный язык живёт в теме, настройки хранят только предпочтения
+# The visual language lives in the theme; settings store only preferences
 
-Цвета, размеры и шрифт интерфейса задаёт ресурс `UiTheme`. В настройках остаётся только то, что выбирает игрок: видимость, позиция и частота обновления оверлея производительности и клавиша его переключения.
+Colors, sizes and the interface font are set by the `UiTheme` resource. Settings keep only what the player chooses: visibility, position and refresh rate of the performance overlay, and its toggle key.
 
-Из `PerformanceOverlaySettings` убраны `font_size`, `text_color` и `background_color`. Причина в том, что до унификации эти же значения задавались ещё и константами в `style.rs`, и литералами прямо в коде экранов — три источника правды на один цвет. Поля, которые уже лежат в файле настроек у пользователя, теперь игнорируются.
+`font_size`, `text_color` and `background_color` were removed from `PerformanceOverlaySettings`. The reason is that before unification these same values were also set by constants in `style.rs` and by literals right in screen code — three sources of truth for a single color. Fields that are already in the user's settings file are now ignored.
 
 ## Consequences
 
-Оверлей выглядит так же, как остальной интерфейс: цвет и размер приходят из темы, а не из своего набора полей. Если позже понадобится настраивать вид оверлея, это будет осознанный механизм override, а не случайное наследство.
+The overlay looks the same as the rest of the interface: color and size come from the theme, not from its own set of fields. If later there is a need to customize the overlay's appearance, it will be a deliberate override mechanism, not accidental legacy.

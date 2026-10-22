@@ -96,7 +96,7 @@ fn spawn_simulation_ui(mut commands: Commands, theme: Res<UiTheme>) {
                     ..default()
                 })
                 .with_children(|buttons| {
-                    spawn_hud_button(buttons, theme, "⏸", SimulationAction::PauseToggle);
+                    spawn_hud_button(buttons, theme, "Stop", SimulationAction::PauseToggle);
                     spawn_hud_button(buttons, theme, "1x", SimulationAction::SetSpeed(1.0));
                     spawn_hud_button(buttons, theme, "2x", SimulationAction::SetSpeed(2.0));
                     spawn_hud_button(buttons, theme, "5x", SimulationAction::SetSpeed(5.0));
@@ -194,7 +194,7 @@ fn spawn_time_jump_ui(mut commands: Commands, theme: Res<UiTheme>) {
             spawn_label(
                 parent,
                 theme,
-                "Пропускаем время...",
+                "Skipping time...",
                 theme.font_heading,
                 TimeJumpStatusText,
             );
@@ -241,9 +241,9 @@ fn update_time_jump_ui(
     );
 
     let status_text = if clock.current_tick < progress.target_tick {
-        "Пропускаем время...".to_string()
+        "Skipping time...".to_string()
     } else {
-        "Обрабатываем события...".to_string()
+        "Processing events...".to_string()
     };
 
     for mut text in queries.p0().iter_mut() {

@@ -23,6 +23,7 @@ fn spawn_main_menu(mut commands: Commands, theme: Res<UiTheme>) {
 
         spawn_button(parent, theme, "Start Game", MenuAction::StartGame);
         spawn_button(parent, theme, "Save settings", MenuAction::SaveSettings);
+        spawn_button(parent, theme, "Exit", MenuAction::Exit);
     });
 }
 

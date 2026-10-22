@@ -15,6 +15,7 @@ fn spawn_pause_menu(mut commands: Commands, theme: Res<UiTheme>) {
         spawn_button(parent, theme, "Resume", MenuAction::Resume);
         spawn_button(parent, theme, "Open settings", MenuAction::OpenSettings);
         spawn_button(parent, theme, "Main menu", MenuAction::QuitToMainMenu);
+        spawn_button(parent, theme, "Exit", MenuAction::Exit);
     });
 }
 

@@ -11,6 +11,7 @@ pub enum MenuAction {
     Resume,
     OpenSettings,
     QuitToMainMenu,
+    Exit,
 }
 
 /// Действия панели симуляции — словарь HUD управления временем.
@@ -56,6 +57,7 @@ impl From<MenuAction> for MenuRequest {
             MenuAction::Resume => MenuRequest::Resume,
             MenuAction::OpenSettings => MenuRequest::OpenSettings,
             MenuAction::QuitToMainMenu => MenuRequest::QuitToMainMenu,
+            MenuAction::Exit => MenuRequest::Exit,
         }
     }
 }

@@ -15,6 +15,7 @@ pub enum MenuRequest {
     Resume,
     OpenSettings,
     QuitToMainMenu,
+    Exit,
 }
 
 /// Обработка запросов меню.
@@ -39,6 +40,7 @@ pub fn handle_menu_requests(
             MenuRequest::Resume => next_play.set(PlayState::Playing),
             MenuRequest::OpenSettings => info!("Open settings (not implemented)"),
             MenuRequest::QuitToMainMenu => next_session.set(GameSessionState::MainMenu),
+            MenuRequest::Exit => info!("Exit game (not implemented)"),
         }
     }
 }

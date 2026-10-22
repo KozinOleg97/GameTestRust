@@ -8,7 +8,7 @@ use super::systems::{
     setup_terrain_material,
 };
 use crate::game::{GameSessionState, PlayState};
-use crate::hex::{ChunkLayout, ChunkMap, HoveredHex, MapBounds, SelectedHex};
+use crate::hex::{HoveredHex, SelectedHex};
 use crate::pointer::update_pointer_blocked;
 use crate::rendering::{debug_frustum_stats, log_when_all_chunks_meshed};
 
@@ -16,13 +16,12 @@ pub struct HexRenderingPlugin;
 
 impl Plugin for HexRenderingPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ChunkMap>()
-            .init_resource::<ChunkLayout>()
-            .init_resource::<MapBounds>()
-            .init_resource::<MeshBuildQueue>()
+        app.init_resource::<MeshBuildQueue>()
             .init_resource::<TerrainMaterial>()
-            // Состояние выбора гекса принадлежит домену, но инициализируется здесь:
-            // это единственный плагин, который знает про камеру и курсор.
+            // `ChunkMap`, `ChunkLayout` и `MapBounds` принадлежат
+            // `WorldGenerationPlugin`: он их создаёт и сбрасывает. Здесь только
+            // `HoveredHex` и `SelectedHex` — это состояние наведения и выбора,
+            // и инициализирует его тот, кто его считает.
             .init_resource::<HoveredHex>()
             .init_resource::<SelectedHex>()
             .add_systems(OnEnter(GameSessionState::Loading), clear_mesh_queue)

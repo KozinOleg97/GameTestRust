@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 
 use crate::game::settings::RenderingSettings;
-use crate::hex::{ChunkData, ChunkLayout, HEX_DIRECTIONS, HexChunk, MapBounds};
+use crate::hex::{ChunkData, ChunkLayout, HEX_DIRECTIONS, HexChunk, MapBounds, SQRT_3};
 
 use super::hex_math::{SHARED_CORNERS, hex_corners};
 
@@ -186,7 +186,7 @@ fn hex_center_local(_layout: &ChunkLayout, hex_size: f32, local_q: usize, local_
     let q = local_q as f32;
     let r = local_r as f32;
 
-    let x = hex_size * super::hex_math::SQRT_3 * (q + r / 2.0);
+    let x = hex_size * SQRT_3 * (q + r / 2.0);
     let z = hex_size * 1.5 * r;
 
     Vec3::new(x, 0.0, z)
