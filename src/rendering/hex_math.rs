@@ -46,10 +46,10 @@ pub fn ray_ground_point(origin: Vec3, direction: Vec3) -> Option<Vec3> {
 pub fn hex_corners(hex_size: f32) -> [Vec3; 6] {
     let mut corners = [Vec3::ZERO; 6];
 
-    for i in 0..6 {
+    for (i, corner) in corners.iter_mut().enumerate() {
         let angle_rad = (60.0 * i as f32 + 30.0).to_radians();
 
-        corners[i] = Vec3::new(hex_size * angle_rad.cos(), 0.0, hex_size * angle_rad.sin());
+        *corner = Vec3::new(hex_size * angle_rad.cos(), 0.0, hex_size * angle_rad.sin());
     }
 
     corners

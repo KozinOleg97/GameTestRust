@@ -120,9 +120,7 @@ pub fn build_chunk_mesh(
 
                 let center = hex_center_local(layout, render.hex_size, q, r);
 
-                for dir_idx in 0..6 {
-                    let dir = &HEX_DIRECTIONS[dir_idx];
-
+                for (dir_idx, dir) in HEX_DIRECTIONS.iter().enumerate() {
                     let local_nq = q as i32 + dir.q();
                     let local_nr = r as i32 + dir.r();
 

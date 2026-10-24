@@ -128,6 +128,8 @@ pub fn queue_dirty_chunks_system(
 // Process queue
 // -----------------------------------------------------------------------------
 
+// Аргументы Bevy-системы — это запросы к миру, а не публичный API функции.
+#[allow(clippy::too_many_arguments)]
 pub fn process_mesh_build_queue_system(
     mut commands: Commands,
     mut queue: ResMut<MeshBuildQueue>,

@@ -1,6 +1,7 @@
 # Фиксирует проверенное окружение сборки.
-# Rust 1.97.1 (stable-x86_64-pc-windows-msvc), edition 2024 в Cargo.toml.
+# Пин по версии, а не по host-триплету: так файл одинаково работает на Linux и Windows.
+# Rust 1.97.1, edition 2024 в Cargo.toml.
 [toolchain]
-channel = "stable-x86_64-pc-windows-msvc"
+channel = "1.97.1"
 components = ["rustfmt", "clippy", "rust-src"]
 profile = "default"

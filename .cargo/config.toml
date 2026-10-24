@@ -9,7 +9,7 @@
 r  = "run"
 rr = "run --release"
 c  = "check --all-targets"
-l  = "clippy --all-targets"
+l  = "clippy --all-targets --locked -- -D warnings -A clippy::type_complexity -A non_snake_case"
 f  = "fmt --all"
 ft = "fmt --all -- --check"
 

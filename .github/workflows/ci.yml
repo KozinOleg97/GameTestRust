@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Отключаем инкрементальность и debug-info: меньше кэш, быстрее CI.
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+  RUST_BACKTRACE: 1
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Минимальный набор, который требует Bevy (см. bevy/.github/actions/install-linux-deps).
+      # X11 не нужен: bevy_x11 использует x11-dl и грузит библиотеки в рантайме.
+      - name: Install Bevy build deps
+        run: >
+          sudo apt-get update &&
+          sudo apt-get install -y --no-install-recommends
+          libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Сохраняем кэш только с master: PR-ветки его восстанавливают, но не плодят копии.
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        # Два allow — известный шум Bevy: имя крэйта равно имени продукта (и бинарника),
+        # а типы параметров систем (Query/ParamSet) законно сложные.
+        run: >
+          cargo clippy --all-targets --locked --
+          -D warnings -A clippy::type_complexity -A non_snake_case
+
+      - name: Test
+        run: cargo test --locked
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+
+      # Сборка под Windows без запуска тестов: ловит cfg/платформенные поломки дешевле,
+      # чем полный тестовый прогон.
+      - name: Check
+        run: cargo check --locked
