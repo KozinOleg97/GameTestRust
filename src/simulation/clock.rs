@@ -58,7 +58,7 @@ pub fn update_sim_clock(
     let whole_ticks = ticks_f.floor();
 
     clock.accumulator += ticks_f - whole_ticks;
-    clock.current_tick += whole_ticks as u64;
+    clock.current_tick = clock.current_tick.saturating_add(whole_ticks as u64);
 
     if clock.accumulator >= 1.0 {
         let extra = clock.accumulator.floor() as u64;
