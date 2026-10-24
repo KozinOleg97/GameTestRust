@@ -6,7 +6,7 @@ pub enum GameSessionState {
     #[default]
     MainMenu,
     Loading,
-    Active, // Игра запущена 
+    Active, // Игра запущена
 }
 
 // Подсостояние игрового процесса (работает только когда GameSessionState::Active)

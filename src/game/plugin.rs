@@ -1,31 +1,47 @@
-use bevy::log;
-
 use crate::camera::CameraPlugin;
-use crate::game::{GameSessionState, PlayState, WorldGeneratedEvent};
+use crate::game::{
+    GameSessionState, MenuRequest, PlayState, WorldGeneratedEvent, handle_menu_requests,
+};
 use crate::generation::WorldGenerationPlugin;
-use crate::rendering::{FullMeshRenderingPlugin, HexRenderingPlugin, RenderingMode};
+use crate::rendering::HexRenderingPlugin;
 
+use crate::pointer::PointerPlugin;
+use crate::simulation::clock::SimClock;
+use crate::simulation::plugin::SimulationPlugin;
 use crate::ui::UIPlugin;
 use bevy::prelude::*;
-use bevy_settings::{SettingsPlugin};
+use bevy_settings::SettingsPlugin;
 
+/// Главный плагин игры.
+/// Связывает все подсистемы: генерацию, рендеринг, камеру и UI.
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<GameSessionState>()
+        app
+            // --- Состояния и события ---
+            .init_state::<GameSessionState>()
             .add_sub_state::<PlayState>()
             .add_message::<WorldGeneratedEvent>()
+            .add_message::<MenuRequest>()
+            // --- Подключаемые плагины ---
+            // Ресурсы мира (`ChunkMap`, `ChunkLayout`, `MapBounds`) здесь не
+            // инициализируются: их владелец — `WorldGenerationPlugin`, который их
+            // и создаёт, и сбрасывает. Дублирующий `init_resource` маскировал бы
+            // порядок плагинов, а не чинил бы его.
             .add_plugins((
+                SettingsPlugin::new("org.bevy.examples.settings"),
+                PointerPlugin,
                 CameraPlugin,
                 WorldGenerationPlugin,
-                HexRenderingPlugin {
-                    mode: RenderingMode::FullMesh,
-                },
+                HexRenderingPlugin,
                 UIPlugin,
+                SimulationPlugin,
             ))
-            .add_plugins(SettingsPlugin::new("org.bevy.examples.settings"))
-            // Обработка паузы/возобновления
+            // --- Глобальные игровые системы ---
+            // Запросы меню обрабатываются всегда: они нужны и в главном меню,
+            // и на паузе, и во время игры.
+            .add_systems(Update, handle_menu_requests)
             .add_systems(
                 Update,
                 handle_pause.run_if(in_state(GameSessionState::Active)),
@@ -38,29 +54,38 @@ impl Plugin for GamePlugin {
     }
 }
 
+/// Обработка паузы (Escape)
 pub fn handle_pause(
     keyboard: Res<ButtonInput<KeyCode>>,
     current_play_state: Res<State<PlayState>>,
     mut next_play_state: ResMut<NextState<PlayState>>,
+    mut sim_clock: ResMut<SimClock>,
 ) {
     if keyboard.just_pressed(KeyCode::Escape) {
-        if *current_play_state.get() == PlayState::Playing {
-            next_play_state.set(PlayState::Paused);
-            info!("Game is paused!");
-        } else if *current_play_state.get() == PlayState::Paused {
-            next_play_state.set(PlayState::Playing);
-            info!("Game is playing");
+        match current_play_state.get() {
+            PlayState::Playing => {
+                next_play_state.set(PlayState::Paused);
+                sim_clock.paused = true;
+                info!("Game is paused!");
+            }
+            PlayState::Paused => {
+                next_play_state.set(PlayState::Playing);
+                sim_clock.paused = false;
+                info!("Game is playing");
+            }
         }
     }
 }
 
+/// Старт игры из главного меню (Enter)
 fn start_game(
     mut next_session_state: ResMut<NextState<GameSessionState>>,
-    mut next_play_state: ResMut<NextState<PlayState>>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     if keyboard.just_pressed(KeyCode::Enter) {
-        next_session_state.set(GameSessionState::Active);
-        next_play_state.set(PlayState::Playing);
+        // Переходим в состояние загрузки, где WorldGenerationPlugin
+        // начнёт генерацию мира в фоновом потоке
+        next_session_state.set(GameSessionState::Loading);
+        info!("Starting game...");
     }
 }

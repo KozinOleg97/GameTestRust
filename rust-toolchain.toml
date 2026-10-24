@@ -1,0 +1,7 @@
+# Фиксирует проверенное окружение сборки.
+# Пин по версии, а не по host-триплету: так файл одинаково работает на Linux и Windows.
+# Rust 1.97.1, edition 2024 в Cargo.toml.
+[toolchain]
+channel = "1.97.1"
+components = ["rustfmt", "clippy", "rust-src"]
+profile = "default"

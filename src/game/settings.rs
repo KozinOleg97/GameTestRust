@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy_settings::{
-    ReflectSettingsGroup, SaveSettingsDeferred, SaveSettingsSync, SettingsGroup, SettingsPlugin,
-};
+use bevy_settings::{ReflectSettingsGroup, SettingsGroup};
+
+use crate::hex::{DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, MIN_CHUNK_SIZE};
 
 // -----------------------------------------------------------------------------
 // Главный ресурс настроек
@@ -9,59 +9,202 @@ use bevy_settings::{
 
 #[derive(Resource, SettingsGroup, Reflect)]
 #[reflect(Resource, SettingsGroup, Default)]
+#[derive(Default)]
 pub struct GameSettings {
     pub camera: CameraSettings,
     pub window: WindowSettings,
     pub performance_overlay: PerformanceOverlaySettings,
     pub audio: AudioSettings,
+
     pub generation: GenerationSettings,
+    pub rendering: RenderingSettings,
+    pub debug: DebugSettings,
+    pub simulation: SimulationSettings,
 }
 
-impl Default for GameSettings {
-    fn default() -> Self {
-        Self {
-            camera: CameraSettings::default(),
-            window: WindowSettings::default(),
-            performance_overlay: PerformanceOverlaySettings::default(),
-            audio: AudioSettings::default(),
-            generation: GenerationSettings::default(),
-        }
+impl GameSettings {
+    pub fn validate_all(&mut self) {
+        self.camera.validate();
+        self.generation.validate();
+        self.rendering.validate();
+        self.simulation.validate();
     }
+}
+
+pub fn validate_game_settings(mut config: ResMut<GameSettings>) {
+    config.validate_all();
 }
 
 // -----------------------------------------------------------------------------
 // Настройки генерации мира
 // -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct GenerationSettings {
+    /// Ширина карты в гексах.
     pub map_width: i32,
+
+    /// Высота карты в гексах.
     pub map_height: i32,
+
+    /// Seed генерации.
     pub generation_seed: u64,
+
+    /// Размер чанка в гексах.
+    /// Должен быть степенью двойки: 8, 16, 32, 64, 128.
     pub chunk_size: i32,
 }
 
 impl Default for GenerationSettings {
     fn default() -> Self {
         Self {
-            map_width: 200,
-            map_height: 200,
+            map_width: 1000,
+            map_height: 1000,
             generation_seed: 12345,
-            chunk_size: 20,
+            chunk_size: DEFAULT_CHUNK_SIZE as i32,
+        }
+    }
+}
+
+impl GenerationSettings {
+    pub fn validate(&mut self) {
+        if self.map_width <= 0 {
+            warn!(
+                "GenerationSettings.map_width was {}, forcing to 1",
+                self.map_width
+            );
+            self.map_width = 1;
+        }
+
+        if self.map_height <= 0 {
+            warn!(
+                "GenerationSettings.map_height was {}, forcing to 1",
+                self.map_height
+            );
+            self.map_height = 1;
+        }
+
+        if self.chunk_size <= 0 || !is_valid_chunk_size_i32(self.chunk_size) {
+            warn!(
+                "GenerationSettings.chunk_size was {} (allowed: power of two, {}..{}), forcing to {}",
+                self.chunk_size, MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, DEFAULT_CHUNK_SIZE
+            );
+
+            self.chunk_size = DEFAULT_CHUNK_SIZE as i32;
+        }
+    }
+
+    pub fn chunk_size_usize(&self) -> usize {
+        self.chunk_size as usize
+    }
+}
+
+fn is_valid_chunk_size_i32(size: i32) -> bool {
+    size >= MIN_CHUNK_SIZE as i32
+        && size <= MAX_CHUNK_SIZE as i32
+        && size > 0
+        && (size & (size - 1)) == 0
+}
+
+// -----------------------------------------------------------------------------
+// Настройки рендера
+// -----------------------------------------------------------------------------
+
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource, Default)]
+pub struct RenderingSettings {
+    pub hex_size: f32,
+    pub elevation_step: f32,
+    pub skirt_height: f32,
+    pub enable_walls: bool,
+    pub mesh_build_batch_size: usize,
+}
+
+impl Default for RenderingSettings {
+    fn default() -> Self {
+        Self {
+            hex_size: 1.0,
+            elevation_step: 0.9,
+            skirt_height: -10.0,
+            enable_walls: true,
+            mesh_build_batch_size: 32,
+        }
+    }
+}
+
+impl RenderingSettings {
+    pub fn validate(&mut self) {
+        if !self.hex_size.is_finite() || self.hex_size <= 0.0 {
+            warn!(
+                "RenderingSettings.hex_size was {}, forcing to 1.0",
+                self.hex_size
+            );
+            self.hex_size = 1.0;
+        }
+
+        if !self.elevation_step.is_finite() || self.elevation_step <= 0.0 {
+            warn!(
+                "RenderingSettings.elevation_step was {}, forcing to 0.9",
+                self.elevation_step
+            );
+            self.elevation_step = 0.9;
+        }
+
+        if !self.skirt_height.is_finite() {
+            warn!(
+                "RenderingSettings.skirt_height was {}, forcing to -10.0",
+                self.skirt_height
+            );
+            self.skirt_height = -10.0;
+        }
+
+        self.mesh_build_batch_size = self.mesh_build_batch_size.clamp(1, 256);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Debug-настройки
+// -----------------------------------------------------------------------------
+
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource, Default)]
+pub struct DebugSettings {
+    pub chunk_bounds: bool,
+    pub log_generation: bool,
+    pub log_mesh_queue: bool,
+}
+
+impl Default for DebugSettings {
+    fn default() -> Self {
+        Self {
+            chunk_bounds: false,
+            log_generation: true,
+            log_mesh_queue: false,
         }
     }
 }
 
 // -----------------------------------------------------------------------------
-// Настройки камеры (соответствуют полям CameraController)
+// Камера
 // -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct CameraSettings {
+    /// Во сколько раз движение мыши повторяется камерой. При 1.0 точка, за
+    /// которую взялись курсором, остаётся под ним в точности.
     pub pan_speed: f32,
+
+    /// Доля высоты за один щелчок колеса: 0.05 — пять процентов.
     pub zoom_speed: f32,
-    pub min_fov: f32,
-    pub max_fov: f32,
+
+    /// Ниже этой высоты камера не опускается при приближении.
+    pub zoom_min_altitude: f32,
+
+    /// Выше этой высоты камера не поднимается при отдалении.
+    pub zoom_max_altitude: f32,
+
     pub move_speed: f32,
     pub rotate_speed: f32,
     pub min_pitch: f32,
@@ -73,8 +216,8 @@ impl Default for CameraSettings {
         Self {
             pan_speed: 1.0,
             zoom_speed: 0.05,
-            min_fov: 1.0,
-            max_fov: 150.0,
+            zoom_min_altitude: 60.0,
+            zoom_max_altitude: 1200.0,
             move_speed: 500.0,
             rotate_speed: 0.005,
             min_pitch: -90.0,
@@ -83,14 +226,49 @@ impl Default for CameraSettings {
     }
 }
 
-// impl ValidatedSetting for CameraSettings {
-//     fn validate(&mut self) {}
-// }
+impl CameraSettings {
+    pub fn validate(&mut self) {
+        if !self.pan_speed.is_finite() || self.pan_speed <= 0.0 {
+            warn!(
+                "CameraSettings.pan_speed was {}, forcing to 1.0",
+                self.pan_speed
+            );
+            self.pan_speed = 1.0;
+        }
+
+        if !self.zoom_speed.is_finite() || self.zoom_speed <= 0.0 {
+            warn!(
+                "CameraSettings.zoom_speed was {}, forcing to 0.05",
+                self.zoom_speed
+            );
+            self.zoom_speed = 0.05;
+        }
+
+        if !self.zoom_min_altitude.is_finite() || self.zoom_min_altitude <= 0.0 {
+            warn!(
+                "CameraSettings.zoom_min_altitude was {}, forcing to 60.0",
+                self.zoom_min_altitude
+            );
+            self.zoom_min_altitude = 60.0;
+        }
+
+        if !self.zoom_max_altitude.is_finite() || self.zoom_max_altitude <= self.zoom_min_altitude {
+            warn!(
+                "CameraSettings.zoom_max_altitude was {} at min altitude {}, forcing to {}",
+                self.zoom_max_altitude,
+                self.zoom_min_altitude,
+                (self.zoom_min_altitude + 1.0).max(1200.0)
+            );
+            self.zoom_max_altitude = (self.zoom_min_altitude + 1.0).max(1200.0);
+        }
+    }
+}
 
 // -----------------------------------------------------------------------------
-// Настройки окна
+// Окно
 // -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct WindowSettings {
     pub width: f32,
@@ -110,21 +288,20 @@ impl Default for WindowSettings {
     }
 }
 
-// impl ValidatedSetting for WindowSettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// FPS overlay
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Настройки FPS-оверлея (аналог PerformanceOverlayConfig)
-// -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+/// Настройки оверлея производительности.
+///
+/// Здесь только пользовательские предпочтения: видимость, позиция и частота
+/// обновления. Цвет, размер шрифта и фон оверлея задаёт `UiTheme`, чтобы вид
+/// интерфейса определялся в одном месте.
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct PerformanceOverlaySettings {
     pub visible: bool,
     pub position: (f32, f32),
-    pub font_size: f32,
-    pub text_color: (f32, f32, f32, f32),               // RGBA
-    pub background_color: Option<(f32, f32, f32, f32)>, // RGBA
     pub fps_average_frames: usize,
     pub toggle_key: KeyCodeSettings,
     pub update_interval_secs: f32,
@@ -135,9 +312,6 @@ impl Default for PerformanceOverlaySettings {
         Self {
             visible: true,
             position: (10.0, 10.0),
-            font_size: 24.0,
-            text_color: (1.0, 1.0, 1.0, 1.0),
-            background_color: Some((0.0, 0.0, 0.0, 0.5)),
             fps_average_frames: 60,
             toggle_key: KeyCodeSettings::F12,
             update_interval_secs: 0.5,
@@ -145,14 +319,72 @@ impl Default for PerformanceOverlaySettings {
     }
 }
 
-// impl ValidatedSetting for PerformanceOverlaySettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// Simulation
+// -----------------------------------------------------------------------------
+
+#[derive(Resource, Reflect, Clone)]
+#[reflect(Resource, Default)]
+pub struct SimulationSettings {
+    /// Длительность одного тика в секундах (например, 0.1)
+    pub tick_duration: f64,
+    /// Множитель максимальной скорости при прыжке
+    pub max_jump_speed: f64,
+    /// Интервалы обновления в тиках для LOD 0, 1, 2
+    pub lod_intervals: [u64; 3],
+    /// Порог прыжка: если прыжок длиннее этого числа тиков,
+    /// использовать агрегированный пересчёт (пока не реализовано)
+    pub jump_aggregation_threshold: u64,
+}
+
+impl Default for SimulationSettings {
+    fn default() -> Self {
+        Self {
+            tick_duration: 0.1,
+            max_jump_speed: 1000.0,
+            lod_intervals: [1, 10, 100],
+            jump_aggregation_threshold: 24 * 60 * 60 * 10, // 1 игровой день
+        }
+    }
+}
+
+impl SimulationSettings {
+    pub fn validate(&mut self) {
+        if !self.tick_duration.is_finite() || self.tick_duration <= 0.0 {
+            warn!(
+                "SimulationSettings.tick_duration was {}, forcing to 0.1",
+                self.tick_duration
+            );
+            self.tick_duration = 0.1;
+        }
+        if !self.max_jump_speed.is_finite() || self.max_jump_speed <= 0.0 {
+            warn!(
+                "SimulationSettings.max_jump_speed was {}, forcing to 1000.0",
+                self.max_jump_speed
+            );
+            self.max_jump_speed = 1000.0;
+        }
+        for i in 0..3 {
+            if self.lod_intervals[i] == 0 {
+                warn!(
+                    "SimulationSettings.lod_intervals[{}] was 0, forcing to 1",
+                    i
+                );
+                self.lod_intervals[i] = 1;
+            }
+        }
+        if self.jump_aggregation_threshold == 0 {
+            warn!("SimulationSettings.jump_aggregation_threshold was 0, forcing to 864000");
+            self.jump_aggregation_threshold = 24 * 60 * 60 * 10;
+        }
+    }
+}
 
 // -----------------------------------------------------------------------------
-// Настройки звука (задел)
+// Audio
 // -----------------------------------------------------------------------------
-#[derive(Resource, Reflect)]
+
+#[derive(Resource, Reflect, Clone)]
 #[reflect(Resource, Default)]
 pub struct AudioSettings {
     pub master_volume: f32,
@@ -170,13 +402,10 @@ impl Default for AudioSettings {
     }
 }
 
-// impl ValidatedSetting for AudioSettings {
-//     fn validate(&mut self) {}
-// }
+// -----------------------------------------------------------------------------
+// Key codes
+// -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// Сериализуемые коды клавиш
-// -----------------------------------------------------------------------------
 #[derive(Resource, Reflect, Copy, Clone)]
 #[reflect(Resource)]
 pub enum KeyCodeSettings {

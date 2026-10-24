@@ -4,11 +4,18 @@ version = "0.1.5"
 edition = "2024"
 
 [dependencies]
-bevy = "0.19"
-bevy-settings = "0.19"
+bevy = "0.20"
+bevy-settings = "0.20"
 noise = "0.9"
 uuid = { version = "1.23", features = ["v4"] }
 futures-lite = "2.6.1"
+
+
+[features]
+# Только для разработки: линковать Bevy как динамическую библиотеку — сильно
+# ускоряет инкрементальную пересборку. В релизных сборках не включать.
+# Использование: cargo run --features dynamic_linking
+dynamic_linking = ["bevy/dynamic_linking"]
 
 
 [profile.dev]

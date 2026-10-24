@@ -9,9 +9,3 @@ pub struct WorldGeneratedEvent;
 //     pub old_type: HexType,
 //     pub new_type: HexType,
 // }
-
-// -----------------------------------------------------------------------------
-// Событие применения настроек
-// -----------------------------------------------------------------------------
-#[derive(Message)]
-pub struct ApplySettings;

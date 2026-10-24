@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      # Раскомментируйте для prerelease-релизов:
+      # - 'v[0-9]+.[0-9]+.[0-9]+-(alpha|beta|rc).[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to rebuild and republish
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  build:
+    strategy:
+      # Обе платформы собираются до конца, даже если одна упала.
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  target: x86_64-unknown-linux-gnu }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Одна проверка вместо grep по Cargo.toml: полное совпадение версии и запрет тегов
+      # не с master.
+      - name: Verify tag
+        shell: bash
+        run: |
+          # `cargo pkgid` печатает `path+file:///...#<version>` (или `...#<name>@<version>`),
+          # поэтому версия — всё после последнего `#` или `@`.
+          version=$(cargo pkgid | sed 's/.*[@#]//')
+          [ "v$version" = "$TAG" ] || { echo "::error::Cargo.toml says $version, tag is $TAG"; exit 1; }
+          git merge-base --is-ancestor "$TAG" origin/master \
+            || { echo "::error::$TAG is not on master"; exit 1; }
+
+      - name: Install Bevy build deps (Linux)
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update &&
+          sudo apt-get install -y --no-install-recommends
+          libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          dir="target/${{ matrix.target }}/release"
+          cp -r assets "$dir/"
+          tar -czf "GameTestRust-${{ matrix.target }}.tar.gz" -C "$dir" GameTestRust assets
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = "target/${{ matrix.target }}/release"
+          Copy-Item assets "$dir/assets" -Recurse
+          Compress-Archive -Path "$dir/GameTestRust.exe", "$dir/assets" `
+            -DestinationPath "GameTestRust-${{ matrix.target }}.zip"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: GameTestRust-${{ matrix.target }}.*
+          if-no-files-found: error
+
+  # Релиз создаётся только после успешной сборки всех платформ: упавшая сборка
+  # больше не оставляет пустой опубликованный релиз.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"
+          gh release upload "$TAG" dist/* --clobber
